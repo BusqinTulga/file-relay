@@ -265,7 +265,7 @@
         <BaseButton
           variant="secondary"
           size="sm"
-          :disabled="!hasSelectedFiles || isBatchDeleting || isBatchPolicyActionRunning"
+          :disabled="!hasSelectedFiles || isBatchDeleting || isBatchPolicyActionRunning || tableData.some(f => f.is_relay_file)"
           :loading="isBatchUpdating"
           @click="openBatchEditModal"
         >
@@ -493,6 +493,8 @@
                       ? 'bg-zinc-900/20 text-zinc-300 hover:bg-zinc-900/30'
                       : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
                   ]"
+                  :disabled="file.is_relay_file"
+                  :title="file.is_relay_file ? 'FileRelay 文件采用固定保留规则' : ''"
                   @click="openEditModal(file)"
                 >
                   <PencilIcon class="mr-1.5 h-4 w-4" />
@@ -619,13 +621,13 @@
               </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-              <BaseButton size="sm" variant="secondary" @click="copyDetailRetrieveCode">
+              <BaseButton v-if="!selectedFileDetail.is_relay_file" size="sm" variant="secondary" @click="copyDetailRetrieveCode">
                 <template #icon>
                   <CopyIcon class="mr-2 h-4 w-4" />
                 </template>
                 {{ t('fileManage.copyCode') }}
               </BaseButton>
-              <BaseButton size="sm" variant="secondary" @click="copyDetailRetrieveLink">
+              <BaseButton v-if="!selectedFileDetail.is_relay_file" size="sm" variant="secondary" @click="copyDetailRetrieveLink">
                 <template #icon>
                   <CopyIcon class="mr-2 h-4 w-4" />
                 </template>

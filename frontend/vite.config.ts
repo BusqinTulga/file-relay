@@ -43,8 +43,15 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  server: {
+    proxy: {
+      "/api": "http://127.0.0.1:12345",
+      "/admin": "http://127.0.0.1:12345",
+      "/setup": "http://127.0.0.1:12345"
+    }
+  },
   build: {
-    outDir: '../FileCodeBox/themes/2024',
+    outDir: '../themes/2024',
     emptyOutDir: true
   },
   css: {

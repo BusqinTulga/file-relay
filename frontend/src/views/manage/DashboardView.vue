@@ -32,7 +32,7 @@
         icon-color="zinc"
       >
         <template #description>
-          {{ t('admin.dashboard.todayIncrease', { count: dashboardData.todaySizeText }) }}
+          总容量 {{ (dashboardData.relayCapacity / 1e9).toFixed(0) }} GB · 预留 {{ (dashboardData.relayReserved / 1e9).toFixed(2) }} GB · 可用 {{ (dashboardData.relayAvailable / 1e9).toFixed(2) }} GB
         </template>
       </StatCard>
 

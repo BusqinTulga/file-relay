@@ -39,13 +39,14 @@ async def delete_expire_files():
             await StorageReservation.filter(expires_at__lte=await get_now()).delete()
             expire_data = await FileCodes.filter(
                 Q(expired_at__lt=await get_now()) | Q(expired_count=0)
-            ).all()
+            ).filter(relay_group_id__isnull=True).all()
             for exp in expire_data:
                 try:
                     if not is_local_ref(exp):
                         await file_storage.delete_file(stored_file_of(exp))
                 except Exception as e:
                     logger.error(f"删除过期文件失败 code={exp.code}: {e}")
+                    continue
                 try:
                     await exp.delete()
                 except Exception as e:
@@ -124,6 +125,7 @@ async def clean_expired_presign_sessions():
                             "清理过期直传文件失败 "
                             f"upload_id={session.upload_id}: {e}"
                         )
+                        continue
                 await StorageReservation.filter(
                     token=f"presign:{session.upload_id}"
                 ).delete()

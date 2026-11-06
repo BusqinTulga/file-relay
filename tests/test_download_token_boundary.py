@@ -1,67 +1,13 @@
-"""Download endpoint edge paths: token verification failure modes.
-
-Covers the negative space of /share/download — the constant-time token
-comparison must reject malformed keys with 403 while still accepting both
-the current and the previous time-window token (boundary race tolerance).
-"""
+"""Legacy per-file tokens cannot open relay files or revive public downloads."""
 import pytest
-
 from core.utils import get_select_token
 
+@pytest.mark.parametrize('key',['0'*64,'密钥'*32,'',None])
+async def test_legacy_keys_never_open_download(initialized_client,key):
+    response=await initialized_client.get('/share/download',params={'key':key or '', 'code':'007'})
+    assert response.status_code==410
 
-@pytest.mark.asyncio
-class TestDownloadTokenBoundary:
-    async def test_wrong_key_is_rejected_with_403(self, initialized_client):
-        share = await initialized_client.post(
-            "/share/text", data={"text": "token fixture", "expire_style": "day"}
-        )
-        assert share.status_code == 200
-        code = share.json()["detail"]["code"]
-
-        response = await initialized_client.get(
-            "/share/download", params={"key": "0" * 64, "code": code}
-        )
-        assert response.status_code == 403
-
-    async def test_both_time_window_tokens_are_accepted(self, initialized_client):
-        share = await initialized_client.post(
-            "/share/text", data={"text": "token fixture", "expire_style": "day"}
-        )
-        assert share.status_code == 200
-        code = share.json()["detail"]["code"]
-
-        for offset in (0, 1):
-            token = await get_select_token(code, offset=offset)
-            response = await initialized_client.get(
-                "/share/download", params={"key": token, "code": code}
-            )
-            assert response.status_code == 200, f"offset={offset}"
-
-    async def test_token_of_other_code_is_rejected(self, initialized_client):
-        share = await initialized_client.post(
-            "/share/text", data={"text": "token fixture", "expire_style": "day"}
-        )
-        assert share.status_code == 200
-        code = share.json()["detail"]["code"]
-
-        foreign_token = await get_select_token("other-code", offset=0)
-        response = await initialized_client.get(
-            "/share/download", params={"key": foreign_token, "code": code}
-        )
-        assert response.status_code == 403
-
-
-@pytest.mark.asyncio
-class TestDownloadTokenMalformedInput:
-    async def test_non_ascii_key_rejected_not_500(self, initialized_client):
-        """compare_digest(str) 会在非 ASCII 输入时抛 TypeError——必须以字节比较。"""
-        share = await initialized_client.post(
-            "/share/text", data={"text": "token fixture", "expire_style": "day"}
-        )
-        assert share.status_code == 200
-        code = share.json()["detail"]["code"]
-
-        response = await initialized_client.get(
-            "/share/download", params={"key": "密钥" * 32, "code": code}
-        )
-        assert response.status_code == 403
+async def test_old_signed_keys_are_also_closed(initialized_client):
+    for offset in (0,1):
+        token=await get_select_token('007',offset=offset)
+        assert (await initialized_client.get('/share/download',params={'key':token,'code':'007'})).status_code==410

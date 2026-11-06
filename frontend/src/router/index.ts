@@ -19,7 +19,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: ROUTE_NAMES.RETRIEVE,
-    component: () => import('@/views/RetrievewFileView.vue'),
+    component: () => import('@/views/RelayView.vue'),
     meta: {
       ...publicPageMeta,
       title: 'retrieve'
@@ -28,11 +28,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: ROUTES.SEND,
     name: ROUTE_NAMES.SEND,
-    component: () => import('@/views/SendFileView.vue'),
-    meta: {
-      ...publicPageMeta,
-      title: 'send'
-    }
+    redirect: '/'
   },
   {
     path: ROUTES.ADMIN,

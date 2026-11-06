@@ -10,6 +10,9 @@ type UseDashboardStatsOptions = {
 const emptyDashboardData = (): DashboardViewData => ({
   hasExtendedStats: false,
   totalFiles: 0,
+  relayCapacity: 500_000_000_000,
+  relayReserved: 0,
+  relayAvailable: 500_000_000_000,
   storageUsed: 0,
   yesterdayCount: 0,
   todayCount: 0,
@@ -111,6 +114,9 @@ export function useDashboardStats(options: UseDashboardStatsOptions = {}) {
 
       const detail = response.detail
       dashboardData.totalFiles = toNumber(detail.total_files)
+      dashboardData.relayCapacity = toNumber(detail.relay_capacity)
+      dashboardData.relayReserved = toNumber(detail.relay_reserved)
+      dashboardData.relayAvailable = toNumber(detail.relay_available)
       dashboardData.storageUsed = toNumber(detail.storage_used)
       dashboardData.yesterdayCount = toNumber(detail.yesterday_count)
       dashboardData.todayCount = toNumber(detail.today_count)

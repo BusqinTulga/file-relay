@@ -63,5 +63,22 @@ jobs:
           sys.exit(1 if stale else 0)
           PY
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build and check frontend
+        working-directory: frontend
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm build
       - name: Run tests
         run: pytest -q
+      - name: Validate Compose and image
+        run: |
+          docker compose config --quiet
+          docker build -t filerelay:ci .
+          python scripts/verify_relay_container.py filerelay:ci

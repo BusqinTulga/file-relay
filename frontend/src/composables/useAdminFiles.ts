@@ -391,7 +391,7 @@ export function useAdminFiles() {
     }
   ])
 
-  const detailPolicyActionOptions = computed<DetailPolicyActionOption[]>(() => [
+  const detailPolicyActionOptions = computed<DetailPolicyActionOption[]>(() => selectedFileDetail.value?.is_relay_file ? [] : [
     {
       action: 'extend_24h',
       label: t('fileManage.policyActions.extend24h'),
@@ -419,7 +419,7 @@ export function useAdminFiles() {
   ])
 
   const batchPolicyActionOptions = computed<BatchPolicyActionOption[]>(
-    () => detailPolicyActionOptions.value
+    () => tableData.value.some(f => f.is_relay_file) ? [] : detailPolicyActionOptions.value
   )
 
   const inferIsText = (file: FileListItem) => {

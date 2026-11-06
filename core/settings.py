@@ -4,13 +4,14 @@ from typing import Any
 # @File    : settings.py
 # @Software: PyCharm
 from pathlib import Path
+import os
 
 ADMIN_SESSION_EXPIRE_DEFAULT = 30 * 24 * 60 * 60
 ADMIN_SESSION_EXPIRE_MIN = 24 * 60 * 60
 ADMIN_SESSION_EXPIRE_MAX = 365 * 24 * 60 * 60
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-data_root = BASE_DIR / "data"
+data_root = Path(os.environ.get("FILERELAY_DATA_ROOT", str(BASE_DIR / "data"))).expanduser().resolve()
 
 if not data_root.exists():
     data_root.mkdir(parents=True, exist_ok=True)
@@ -19,10 +20,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "file_storage": "local",
     "storage_path": "",
     "storage_limit": 0,
-    "name": "文件快递柜 - FileCodeBox",
+    "name": "FileRelay／文件接力",
     "description": "开箱即用的文件快传系统",
     "notify_title": "系统通知",
-    "notify_content": '欢迎使用 FileCodeBox，本程序开源于 <a href="https://github.com/vastsa/FileCodeBox" target="_blank">Github</a> ，欢迎Star和Fork。',
+    "notify_content": "",
     "page_explain": "请勿上传或分享违法内容。根据《中华人民共和国网络安全法》、《中华人民共和国刑法》、《中华人民共和国治安管理处罚法》等相关规定。 传播或存储违法、违规内容，会受到相关处罚，严重者将承担刑事责任。本站坚决配合相关部门，确保网络内容的安全，和谐，打造绿色网络环境。",
     "keywords": "FileCodeBox, 文件快递柜, 口令传送箱, 匿名口令分享文本, 文件",
     "s3_access_key_id": "",

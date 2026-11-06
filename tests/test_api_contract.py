@@ -65,13 +65,9 @@ class TestApiContractSnakeCase:
         _check_contract(response.json(), "/admin/file/list")
 
     async def test_share_metadata(self, initialized_client):
-        share = await initialized_client.post(
-            "/share/text/", data={"text": "contract guard", "expire_value": 1, "expire_style": "day"}
-        )
-        assert share.status_code == 200, share.text
-        code = share.json()["detail"]["code"]
-        response = await initialized_client.get(
-            "/share/metadata/", params={"code": code}
-        )
+        from tests.test_relay import pair, upload
+        assert (await pair(initialized_client)).json()['paired']
+        file, _ = await upload(initialized_client)
+        response = await initialized_client.get(f"/api/relay/files/{file['id']}")
         assert response.status_code == 200
-        _check_contract(response.json(), "/share/metadata/")
+        _check_contract(response.json(), '/api/relay/files')

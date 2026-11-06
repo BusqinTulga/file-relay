@@ -15,3 +15,5 @@ export { useMcpSettings } from './useMcpSettings'
 export { useTheme } from './useTheme'
 export { provideAdminHeaderActions, useAdminHeaderActions } from './useAdminHeaderActions'
 export type { AdminHeaderAction, AdminHeaderConfig } from './useAdminHeaderActions'
+
+export { useRelay } from './useRelay'

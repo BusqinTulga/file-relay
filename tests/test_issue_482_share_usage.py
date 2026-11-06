@@ -43,7 +43,8 @@ class ShareUsageSecurityTests(unittest.TestCase):
             parse_setup_options({"expire_style": ["day"]})["code_generate_type"],
             "secret",
         )
-        self.assertIn('<option value="secret" selected>', build_setup_page())
+        self.assertNotIn('name="code_generate_type"', build_setup_page())
+        self.assertIn("FileRelay", build_setup_page())
 
     def test_atomic_usage_download_and_metadata_limits(self):
         asyncio.run(self._run_scenario())

@@ -47,7 +47,7 @@ export default {
     hour: '小时',
     day: '天',
     times: '次',
-    appName: '文件快递柜 - FileCodeBox',
+    appName: 'FileRelay／文件接力',
     appDescription: '开箱即用的文件快传系统'
   },
 
@@ -102,7 +102,7 @@ export default {
       refreshing: '刷新中',
       lastUpdated: '最近更新：{time}',
       loadFailed: '仪表盘数据加载失败',
-      footerProduct: 'FileCodeBox 管理后台',
+      footerProduct: 'FileRelay 管理后台',
       backendVersion: '服务端版本',
       frontendVersion: '前端版本',
       versionPending: '待同步',

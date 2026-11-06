@@ -76,9 +76,7 @@
             </span>
           </div>
           <div v-if="item.type === 'file'" class="flex flex-wrap gap-2">
-            <BaseButton size="sm" @click="openShare(item)">
-              {{ t('admin.localShare.share') }}
-            </BaseButton>
+
             <BaseButton size="sm" variant="danger" :loading="deletingPath === item.path" @click="removeFile(item)">
               {{ t('admin.localShare.delete') }}
             </BaseButton>

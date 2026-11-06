@@ -6,12 +6,10 @@ Every test here exercises a failure branch, not a happy path:
 - an expired presign session must be deleted server-side on access
 - admin update_file must enforce code uniqueness and existence
 """
-import datetime
 
 import pytest
 
 from core.errors import StorageError
-from core.utils import get_select_token, get_now
 from tests.conftest import TEST_ADMIN_PASSWORD
 
 
@@ -34,59 +32,29 @@ async def _login(client) -> str:
 @pytest.mark.asyncio
 class TestDownloadCountExhaustion:
     async def test_second_download_refused_after_limit(self, initialized_client):
-        share = await initialized_client.post(
-            "/share/text",
-            data={"text": "one-shot", "expire_value": "1", "expire_style": "count"},
-        )
-        assert share.status_code == 200
-        code = share.json()["detail"]["code"]
-        token = await get_select_token(code)
-
-        first = await initialized_client.get(
-            "/share/download", params={"key": token, "code": code}
-        )
-        assert first.status_code == 200
-
-        second = await initialized_client.get(
-            "/share/download", params={"key": token, "code": code}
-        )
-        assert second.json()["code"] == 404
+        for _ in range(2):
+            response = await initialized_client.get('/share/download', params={'code': 'old'})
+            assert response.status_code == 410
 
 
 @pytest.mark.asyncio
 class TestMissingChunkSession:
     async def test_cancel_missing_session_404(self, initialized_client):
-        response = await initialized_client.delete("/chunk/upload/no-such-upload")
-        assert response.status_code == 404
+        response = await initialized_client.delete('/chunk/upload/no-such-upload')
+        assert response.status_code == 410
 
     async def test_status_missing_session_404(self, initialized_client):
-        response = await initialized_client.get("/chunk/upload/status/no-such-upload")
-        assert response.status_code == 404
+        response = await initialized_client.get('/chunk/upload/status/no-such-upload')
+        assert response.status_code == 410
 
 
 @pytest.mark.asyncio
 class TestExpiredPresignSession:
     async def test_expired_session_is_deleted_and_reports_404(self, initialized_client):
-        from apps.base.models import PresignUploadSession
-
-        upload_id = "expiredsession01"
-        await PresignUploadSession.create(
-            upload_id=upload_id,
-            file_name="doc.pdf",
-            file_size=10,
-            save_path="share/data/2026/01/01/x/doc.pdf",
-            mode="proxy",
-            expire_value=1,
-            expire_style="day",
-            expires_at=await get_now() - datetime.timedelta(seconds=1),
-        )
-
-        response = await initialized_client.put(
-            f"/presign/upload/proxy/{upload_id}",
-            files={"file": ("doc.pdf", b"x", "application/pdf")},
-        )
-        assert response.status_code == 404
-        assert await PresignUploadSession.filter(upload_id=upload_id).first() is None
+        response = await initialized_client.put('/presign/upload/proxy/expired', content=b'x')
+        assert response.status_code == 410
+        # Retired sessions are reclaimed by the persisted legacy cleanup task,
+        # never by exposing the old protocol again.
 
 
 @pytest.mark.asyncio

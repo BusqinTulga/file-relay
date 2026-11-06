@@ -3,11 +3,11 @@
 # @File    : main.py
 # @Software: PyCharm
 import asyncio
+import os
 import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import tortoise_exception_handlers
@@ -27,8 +27,10 @@ from apps.base.tasks import (
     clean_incomplete_uploads,
     delete_expire_files,
 )
-from apps.base.views import share_api, chunk_api, presign_api
-from apps.base.mcp import router as mcp_router
+from apps.relay.auth import router as relay_auth
+from apps.relay.uploads import router as relay_uploads
+from apps.relay.files import router as relay_files
+from apps.relay.cleanup import cleanup_loop
 from core.database import db_startup_lock, init_db
 from core.errors import StorageError
 from core.logger import get_log_level_name, is_access_log_enabled, logger
@@ -38,6 +40,8 @@ from core.version import APP_VERSION
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.server_workers != 1 or int(os.getenv("WORKERS", "1")) != 1:
+        raise RuntimeError("FileRelay requires one worker")
     logger.info("正在初始化应用...")
     # 初始化数据库
     await init_db()
@@ -46,6 +50,7 @@ async def lifespan(app: FastAPI):
     async with db_startup_lock():
         await load_config()
     # 启动后台任务
+    relay_cleanup_task = asyncio.create_task(cleanup_loop())
     task = asyncio.create_task(delete_expire_files())
     chunk_cleanup_task = asyncio.create_task(clean_incomplete_uploads())
     presign_cleanup_task = asyncio.create_task(clean_expired_presign_sessions())
@@ -54,10 +59,12 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        relay_cleanup_task.cancel()
         task.cancel()
         chunk_cleanup_task.cancel()
         presign_cleanup_task.cancel()
         await asyncio.gather(
+            relay_cleanup_task,
             task,
             chunk_cleanup_task,
             presign_cleanup_task,
@@ -109,6 +116,11 @@ async def storage_error_handler(request, exc: StorageError):
 @app.middleware("http")
 async def refresh_settings_middleware(request, call_next):
     await refresh_settings()
+    path = request.url.path
+    if any(path == prefix or path.startswith(prefix + "/") for prefix in (
+        "/share", "/chunk", "/presign", "/api/presign", "/mcp"
+    )):
+        return JSONResponse(status_code=410, content={"detail": "旧公开接口已关闭，请使用 FileRelay 配对首页"})
     if not is_runtime_initialized() and not is_setup_path(request.url.path):
         if wants_html_response(request):
             return setup_response(build_setup_page())
@@ -121,25 +133,18 @@ async def refresh_settings_middleware(request, call_next):
                 "detail": {"setup": "/setup"},
             },
         )
-    return await call_next(request)
+    response = await call_next(request)
+    if path.startswith("/api/relay"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Vary"] = "Cookie"
+    return response
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    # 前端使用 Bearer Token，不依赖 Cookie credentials。
-    # allow_origins=["*"] 与 allow_credentials=True 组合不符合 CORS 规范。
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(share_api)
-app.include_router(chunk_api)
-app.include_router(presign_api)
-app.include_router(presign_api, prefix="/api")
+# Old anonymous protocols are intentionally not registered.
+app.include_router(relay_auth)
+app.include_router(relay_uploads)
+app.include_router(relay_files)
 app.include_router(admin_api)
 app.include_router(pages_router)
-app.include_router(mcp_router)
 
 # 404 时返回主题首页（index 兼任 exception handler 与 GET / 路由）
 app.add_exception_handler(404, not_found_handler)

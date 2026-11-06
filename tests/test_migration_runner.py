@@ -1,5 +1,5 @@
 """Migration runner coverage: discovery order, registration, idempotency,
-and failure propagation. Runs the REAL migrations (001-008) against an
+and failure propagation. Runs the REAL migrations (001-009) against an
 in-memory database — the same code path a deployment upgrade takes.
 """
 import pytest
@@ -8,7 +8,7 @@ from tortoise import Tortoise
 from core.database import execute_migrations
 from tests.helpers import MEMORY_DB_CONFIG, close_db
 
-EXPECTED = [f"migrations_{i:03d}.py" for i in range(1, 9)]
+EXPECTED = [f"migrations_{i:03d}.py" for i in range(1, 10)]
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ class TestMigrationRunner:
         await conn.execute_query("DELETE FROM migrates")
         # 预登记 006/007/008（模拟已执行过末尾迁移的库），验证 runner 只跑缺口
         # 001-005 且跳过已登记的 006/007/008（跳过语义 = 不再执行其 DDL）
-        for name in EXPECTED[-3:]:
+        for name in [f"migrations_{i:03d}.py" for i in (6, 7, 8)]:
             await conn.execute_query(
                 "INSERT INTO migrates (migration_file) VALUES (?)", [name]
             )
@@ -117,7 +117,7 @@ class TestMigrationRunner:
         real_import = importlib.import_module
 
         def fake_import(name):
-            if name.endswith("migrations_008"):
+            if name.endswith("migrations_009"):
                 class FakeMod:
                     @staticmethod
                     async def migrate():
@@ -130,4 +130,4 @@ class TestMigrationRunner:
         with pytest.raises(RuntimeError, match="boom"):
             await execute_migrations()
         # 失败的迁移不得登记
-        assert "migrations_008.py" not in await _registered()
+        assert "migrations_009.py" not in await _registered()

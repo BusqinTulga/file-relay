@@ -1,3 +1,27 @@
+# FileRelay／文件接力
+
+根据 [FileRelay 实施计划](docs/plan.md) 开发的设备间临时文件中转。输入相同的 1 至 4 位数字口令完成前两台设备配对，后续设备经已有设备确认后加入；浏览器记住配对，逐文件上传、自动共享列表和原生下载。
+
+首版固定本地存储、SQLite、单 worker；单文件 1 GB、全站 500 GB。发布后最多保留 24 小时，首次服务端完整发送后保留 10 分钟供重试，不提供永久保存。基于 FileCodeBox 的源码和视觉基础改造，保留上游许可与作者信息。
+
+```sh
+docker compose build
+docker compose up -d
+```
+
+公网使用 HTTPS；本机 HTTP 验证使用 `APP_ENV=development docker compose up -d --build`。首次访问设置管理员密码；后台入口为 `/#/admin`。数据卷持久化，重新构建不会重建数据库。
+
+- [运行、部署、备份恢复和实机验收](docs/guide/filerelay.md)
+- [API 契约](docs/api/relay.md)
+- [实施与验证记录](docs/implementation-status.md)
+- [原始产品计划](docs/plan.md)
+
+旧公开分享、逐文件提取码、预签名和 MCP 已关闭。实际 NAS 部署、域名、HTTPS 和四类目标浏览器实机验收由部署时完成，已执行的开发验证见验证记录。
+
+下列历史 FileCodeBox 文档保留为上游参考，不代表当前 FileRelay 的公开协议或发布方式。
+
+---
+
 <div align="center">
 
 <img src="./docs/public/logo_small.png" alt="FileCodeBox" width="96" />

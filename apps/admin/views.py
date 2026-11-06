@@ -7,7 +7,7 @@ from typing import Any
 from collections import Counter
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from apps.admin.services import FileService, ConfigService, LocalFileService
 from apps.admin.dependencies import (
     admin_required,
@@ -174,6 +174,9 @@ async def dashboard(file_service: FileService = Depends(get_file_service)):
         {((row["suffix"] or "file") or "file"): row["count"] for row in suffix_rows}
     )
 
+    from apps.relay.uploads import used_capacity
+    from apps.relay.config import MAX_STORAGE, MAX_FILE
+    occupied = await used_capacity()
     recent_file_codes = await FileCodes.all().order_by("-created_at").limit(8)
     health_summary = await file_service.build_file_health_summary(
         await FileCodes.all(), now=now
@@ -183,6 +186,11 @@ async def dashboard(file_service: FileService = Depends(get_file_service)):
         detail={
             "total_files": total_files,
             "storage_used": str(all_size),
+            "relay_capacity": MAX_STORAGE,
+            "relay_occupied": occupied,
+            "relay_reserved": max(0, occupied - all_size),
+            "relay_available": max(0, MAX_STORAGE - occupied),
+            "relay_file_limit": MAX_FILE,
             "sys_uptime": sys_start.value if sys_start else None,
             "yesterday_count": yesterday_count,
             "yesterday_size": str(yesterday_size),
@@ -555,10 +563,11 @@ async def update_config(
 
 @admin_api.get("/file/download")
 async def file_download(
+    request: Request,
     id: int,
     file_service: FileService = Depends(get_file_service),
 ):
-    file_content = await file_service.download_file(id)
+    file_content = await file_service.download_file(id, request)
     return file_content
 
 

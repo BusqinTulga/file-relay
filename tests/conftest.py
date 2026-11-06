@@ -6,13 +6,12 @@ run: it would init the real file DB and start background tasks. Instead the
 ``db`` fixture inits an in-memory DB, which the per-request middleware and the
 handlers then use normally.
 """
-import shutil
+import tests  # noqa: F401 -- isolate data root before importing main
 
 import httpx
 import pytest_asyncio
 
 import main
-from core.settings import data_root
 from tests.helpers import close_db, init_memory_db
 
 TEST_ADMIN_PASSWORD = "Integration-Test-12345"
@@ -64,6 +63,3 @@ async def initialized_client(client):
         yield client
     finally:
         settings.user_config = original_user_config
-        # Uploads in tests land under <repo>/data/share; remove them so the
-        # working tree stays clean (the DB itself is in-memory).
-        shutil.rmtree(f"{data_root}/share", ignore_errors=True)

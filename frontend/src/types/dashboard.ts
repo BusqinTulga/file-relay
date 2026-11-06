@@ -14,6 +14,10 @@ export interface DashboardHealthSummary {
 
 /** API 形状：/admin/dashboard 响应（snake_case，与后端 D7 对齐）。 */
 export interface DashboardData {
+  relay_capacity?: number
+  relay_occupied?: number
+  relay_reserved?: number
+  relay_available?: number
   total_files: number
   storage_used: number | string
   yesterday_count: number
@@ -45,6 +49,9 @@ export interface DashboardData {
 export type DashboardViewData = {
   hasExtendedStats: boolean
   totalFiles: number
+  relayCapacity: number
+  relayReserved: number
+  relayAvailable: number
   storageUsed: number
   yesterdayCount: number
   todayCount: number

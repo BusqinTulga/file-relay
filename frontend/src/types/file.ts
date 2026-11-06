@@ -24,6 +24,7 @@ export interface FileListItem {
   status?: 'active' | 'expired'
   is_text?: boolean
   is_expired?: boolean
+  is_relay_file?: boolean
   is_chunked?: boolean
   status_insights?: AdminFileDetailStatusInsights
   remaining_downloads?: number | null

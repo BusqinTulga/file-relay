@@ -47,7 +47,7 @@ export default {
     hour: 'hour',
     day: 'day',
     times: 'times',
-    appName: 'FileCodeBox - File Transfer',
+    appName: 'FileRelay - File Transfer',
     appDescription: 'Ready-to-use file transfer system'
   },
 
@@ -102,7 +102,7 @@ export default {
       refreshing: 'Refreshing',
       lastUpdated: 'Last updated: {time}',
       loadFailed: 'Failed to load dashboard data',
-      footerProduct: 'FileCodeBox Admin Console',
+      footerProduct: 'FileRelay Admin Console',
       backendVersion: 'Server Version',
       frontendVersion: 'Frontend Version',
       versionPending: 'Pending sync',

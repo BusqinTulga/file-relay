@@ -48,7 +48,7 @@ async def setup_submit(request: Request):
         return setup_response(build_setup_page("两次输入的管理员密码不一致", data), 400)
 
     try:
-        setup_options = parse_setup_options(data)
+        setup_options = parse_setup_options({"expire_style": ["day"], **data})
         await initialize_system(
             admin_password=admin_password,
             site_name=site_name,
@@ -152,7 +152,7 @@ async def not_found_handler(request, exc=None):
         status_code=404,
         content={"code": 404, "message": "Not Found", "detail": "资源不存在"},
     )
-    if request is not None and request.method in {"GET", "HEAD"} and "text/html" in (
+    if request is not None and not request.url.path.startswith(("/api/", "/admin/", "/share", "/chunk", "/presign", "/mcp")) and request.method in {"GET", "HEAD"} and "text/html" in (
         request.headers.get("accept", "")
     ):
         try:

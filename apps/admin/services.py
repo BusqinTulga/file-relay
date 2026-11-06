@@ -1,5 +1,4 @@
 import hashlib
-from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
@@ -10,9 +9,7 @@ from core.settings import (
 )
 from apps.base.services import get_stored_download, response_from_download, stored_file_of
 from apps.base.models import FileCodes, KeyValue
-from apps.base.utils import get_expire_info
 from apps.base.local_share import (
-    LOCAL_REF_MARKER,
     is_local_ref,
     should_skip_storage_delete,
 )
@@ -88,6 +85,10 @@ class FileService:
         return f"{self.FILE_METADATA_KEY_PREFIX}{file_id}"
 
     async def _delete_file_code(self, file_code: FileCodes):
+        if file_code.relay_group_id is not None:
+            from apps.relay.files import mark_delete
+            await mark_delete(file_code.id)
+            return
         if not should_skip_storage_delete(file_code):
             await self.file_storage.delete_file(stored_file_of(file_code))
         await KeyValue.filter(key=self._file_metadata_key(file_code.id)).delete()
@@ -150,7 +151,7 @@ class FileService:
 
     async def update_files(self, file_ids: list[int], update_data: dict[str, Any]):
         unique_ids = list(dict.fromkeys(file_ids))
-        updated = []
+        updated: list[int] = []
         failed = []
         missing = []
 
@@ -161,6 +162,8 @@ class FileService:
                 continue
 
             try:
+                if file_code.relay_group_id is not None:
+                    raise HTTPException(409, "FileRelay 文件有效期固定，不能修改")
                 await file_code.update_from_dict(update_data).save()
                 updated.append(file_id)
             except Exception as exc:
@@ -205,6 +208,8 @@ class FileService:
         if not file_code:
             raise HTTPException(status_code=404, detail="文件不存在")
 
+        if file_code.relay_group_id is not None:
+            raise HTTPException(409, "FileRelay 文件采用固定保留规则，不能修改提取码或过期时间")
         update_data: dict[str, Any] = {}
         if code is not None and code != file_code.code:
             if await FileCodes.filter(code=code).first():
@@ -242,6 +247,8 @@ class FileService:
         if not file_code:
             raise HTTPException(status_code=404, detail="文件不存在")
 
+        if file_code.relay_group_id is not None:
+            raise HTTPException(409, "FileRelay 文件采用固定保留规则")
         action = action.strip().lower()
         now = await get_now()
         update_data = self._build_policy_action_update(
@@ -398,7 +405,7 @@ class FileService:
         download_limit: Optional[int] = None,
     ) -> dict[str, Any]:
         unique_ids = list(dict.fromkeys(file_ids))
-        updated = []
+        updated: list[int] = []
         failed = []
         missing = []
         action = action.strip().lower()
@@ -419,6 +426,8 @@ class FileService:
                 continue
 
             try:
+                if file_code.relay_group_id is not None:
+                    raise HTTPException(409, "FileRelay 文件采用固定保留规则")
                 update_data = self._build_policy_action_update(
                     file_code=file_code,
                     action=action,
@@ -594,6 +603,7 @@ class FileService:
             "is_chunked": file_code.is_chunked,
             "upload_id": file_code.upload_id,
             "is_local_ref": is_local_ref(file_code),
+            "is_relay_file": getattr(file_code, "relay_group_id", None) is not None,
         }
         data.update(
             {
@@ -1396,10 +1406,13 @@ class FileService:
         }
         return sort_map.get(sort_by)
 
-    async def download_file(self, file_id: int):
+    async def download_file(self, file_id: int, request=None):
         file_code = await FileCodes.filter(id=file_id).first()
         if not file_code:
             raise HTTPException(status_code=404, detail="文件不存在")
+        if file_code.relay_group_id is not None:
+            from apps.relay.files import download_response
+            return await download_response(file_id, request)
         if file_code.text:
             return APIResponse(detail=file_code.text)
         else:
@@ -1430,36 +1443,8 @@ class FileService:
         }
 
     async def share_local_file(self, item):
-        local_file = LocalFileClass(item.filename)
-        if not await local_file.exists():
-            raise HTTPException(status_code=404, detail="文件不存在")
-
-        expired_at, expired_count, used_count, code = await get_expire_info(
-            item.expire_value, item.expire_style
-        )
-        name = local_file.name
-        suffix = Path(name).suffix
-        prefix = name[: len(name) - len(suffix)] if suffix else name
-        record = await FileCodes.create(
-            code=code,
-            prefix=prefix,
-            suffix=suffix,
-            uuid_file_name=local_file.file,
-            file_path=LOCAL_REF_MARKER,
-            size=local_file.size or 0,
-            expired_at=expired_at,
-            expired_count=expired_count,
-            used_count=used_count,
-        )
-        return {
-            "code": code,
-            "name": name,
-            "path": local_file.file,
-            "id": record.id,
-        }
+        raise HTTPException(410, "首版不创建 NAS 引用分享；原文件浏览和删除仍由管理员管理")
 
 
-
-# —— 门面 re-export：既有 import 路径（apps.admin.services.ConfigService 等）保持兼容 ——
 from apps.admin.config_service import ConfigService, keyvalue_write_lock  # noqa: E402,F401
 from apps.admin.local_files import LocalFileClass, LocalFileService  # noqa: E402,F401

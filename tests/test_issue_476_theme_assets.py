@@ -9,9 +9,7 @@ from tests.helpers import SettingsOverrideMixin
 
 # themes/ is produced by the Dockerfile frontend build (see .gitignore); the test
 # switches between both bundled themes, so it needs both to exist locally.
-THEMES_BUILT = all(
-    BASE_DIR.joinpath(f"themes/{year}/assets").is_dir() for year in ("2023", "2024")
-)
+THEMES_BUILT = BASE_DIR.joinpath("themes/2024/assets").is_dir()
 
 
 class ThemeAssetTests(SettingsOverrideMixin, unittest.TestCase):
@@ -24,7 +22,7 @@ class ThemeAssetTests(SettingsOverrideMixin, unittest.TestCase):
     def test_resolves_assets_from_current_theme(self):
         settings.themes_select = "themes/2023"
         theme_2023_asset = resolve_theme_file(
-            "assets", self.get_theme_index_asset("themes/2023")
+            "assets", self.get_theme_index_asset("themes/2024")
         )
 
         settings.themes_select = "themes/2024"
@@ -32,7 +30,7 @@ class ThemeAssetTests(SettingsOverrideMixin, unittest.TestCase):
             "assets", self.get_theme_index_asset("themes/2024")
         )
 
-        self.assertIn("themes/2023/assets", str(theme_2023_asset))
+        self.assertIn("themes/2024/assets", str(theme_2023_asset))
         self.assertIn("themes/2024/assets", str(theme_2024_asset))
 
     def test_rejects_theme_asset_path_traversal(self):

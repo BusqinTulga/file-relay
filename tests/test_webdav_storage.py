@@ -96,7 +96,7 @@ async def dav_storage():
     from core.settings import settings
     from aiohttp.test_utils import TestServer
 
-    root = Path(tempfile.mkdtemp(prefix="fcb-dav-"))
+    root = Path(tempfile.mkdtemp(prefix="fcb-dav-")).resolve()
     app = make_dav_app(root)
     server = TestServer(app)
     await server.start_server()

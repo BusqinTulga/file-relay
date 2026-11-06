@@ -170,12 +170,6 @@ const menuItems: MenuItem[] = [
     redirect: ROUTES.LOCAL_SHARE
   },
   {
-    id: ROUTE_NAMES.MCP,
-    name: t('admin.mcp.title'),
-    icon: NetworkIcon,
-    redirect: ROUTES.MCP
-  },
-  {
     id: ROUTE_NAMES.SETTINGS,
     name: t('admin.settings.title'),
     icon: CogIcon,

@@ -9,7 +9,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 
 from apps.admin.services import FileService, LocalFileClass, LocalFileService
-from apps.base.local_share import LOCAL_REF_MARKER, is_local_ref
+from apps.base.local_share import LOCAL_REF_MARKER
 from apps.base.models import FileCodes
 from apps.base.quota import get_storage_usage, reserve_storage
 from apps.base.tasks import delete_expire_files
@@ -113,20 +113,11 @@ class ShareLocalFileTests(SettingsOverrideMixin, unittest.TestCase):
                         expire_value = 1
                         expire_style = "day"
 
-                    result = await FileService().share_local_file(Item())
-                    self.assertIn("code", result)
-                    self.assertEqual(result["name"], "doc.txt")
-                    self.assertEqual(result["path"], "movies/doc.txt")
-
-                    record = await FileCodes.get(code=result["code"])
-                    self.assertTrue(is_local_ref(record))
-                    self.assertEqual(record.file_path, LOCAL_REF_MARKER)
-                    self.assertEqual(record.uuid_file_name, "movies/doc.txt")
+                    with self.assertRaises(HTTPException) as error:
+                        await FileService().share_local_file(Item())
+                    self.assertEqual(error.exception.status_code, 410)
                     self.assertTrue(source.exists())
-                    share_files = [
-                        p for p in (root / "share").rglob("*") if p.is_file()
-                    ] if (root / "share").exists() else []
-                    self.assertFalse(share_files)
+                    self.assertEqual(await FileCodes.all().count(), 0)
             finally:
                 await close_db()
 
@@ -230,12 +221,9 @@ class LocalShareHttpTests(unittest.IsolatedAsyncioTestCase):
                             },
                             headers=headers,
                         )
-                        self.assertEqual(share.status_code, 200, share.text)
-                        code = share.json()["detail"]["code"]
-
-                        download = await client.get("/share/select/", params={"code": code})
-                        self.assertEqual(download.status_code, 200, download.text)
-                        self.assertEqual(download.content, b"nas-bytes")
+                        self.assertEqual(share.status_code, 410, share.text)
+                        download = await client.get('/share/select/', params={'code': 'old'})
+                        self.assertEqual(download.status_code, 410)
                         self.assertTrue(source.exists())
             finally:
                 await close_db()
