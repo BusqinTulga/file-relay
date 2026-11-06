@@ -1,14 +1,12 @@
 import asyncio
 import re
 import uuid
-from datetime import datetime, timezone
 from urllib.parse import quote
 
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.responses import Response
 from tortoise.transactions import in_transaction
-from tortoise.expressions import F
 
 from apps.base.models import DownloadAttempt, FileCodes
 from apps.relay import config
@@ -45,7 +43,8 @@ async def metadata(file_id: int, auth=Depends(device_session)):
 
 async def mark_delete(file_id):
     async with state_lock:
-        await FileCodes.filter(id=file_id).update(delete_state="pending")
+        if not await FileCodes.filter(id=file_id).update(delete_state="pending"):
+            raise HTTPException(404, "文件不存在")
 
 
 @router.delete("/files/{file_id}", dependencies=[Depends(csrf)])
@@ -128,13 +127,10 @@ class LeasedDownload(Response):
                     lease_until=stamp)
                 if successful:
                     file = await FileCodes.get_or_none(id=self.file.id)
-                    if file:
-                        await FileCodes.filter(id=file.id).update(used_count=F("used_count") + 1)
                     if file and file.first_sent is None:
                         expiry = min(file.relay_expires, stamp + config.RETRY_WINDOW)
                         await FileCodes.filter(id=file.id, first_sent__isnull=True).update(
-                            first_sent=stamp, relay_expires=expiry,
-                            expired_at=datetime.fromtimestamp(expiry, timezone.utc))
+                            first_sent=stamp, relay_expires=expiry)
 
 
 async def download_response(file_id, request=None, auth=None):
@@ -166,6 +162,7 @@ async def download_response(file_id, request=None, auth=None):
         return LeasedDownload(file, attempt, start, end, eligible, head, ranged)
 
 
-@router.api_route("/files/{file_id}/download", methods=["GET", "HEAD"])
+@router.head("/files/{file_id}/download", include_in_schema=False)
+@router.get("/files/{file_id}/download")
 async def download(file_id: int, request: Request, auth=Depends(device_session)):
     return await download_response(file_id, request, auth)

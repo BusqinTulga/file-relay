@@ -1,3 +1,5 @@
+> Historical FileCodeBox reference. It does not describe the current FileRelay feature set. See [current operations](/guide/filerelay) and [API contract](/api/relay).
+
 # MCP Integration
 
 FileCodeBox provides a **Model Context Protocol (MCP)** endpoint over Streamable HTTP. Compatible AI clients can create text or file shares through it.

@@ -1,3 +1,5 @@
+> 历史参考：本文为旧 FileCodeBox 文档，不代表当前 FileRelay 功能。现行说明见 [运行与升级](/guide/filerelay) 和 [接口契约](/api/relay)。
+
 # 安全设置
 
 FileCodeBox 提供了多层安全机制来保护您的文件分享服务。本文档介绍如何正确配置安全选项，确保系统安全运行。

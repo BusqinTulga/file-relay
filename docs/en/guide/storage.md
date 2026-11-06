@@ -1,3 +1,5 @@
+> Historical FileCodeBox reference. It does not describe the current FileRelay feature set. See [current operations](/guide/filerelay) and [API contract](/api/relay).
+
 # Storage Configuration
 
 FileCodeBox supports multiple storage backends. You can choose the appropriate storage method based on your needs. This document details the configuration methods for various storage backends.

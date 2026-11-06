@@ -27,4 +27,26 @@
 
 文件删除状态 active → pending → deleting → 移除记录。物理删除失败退回 pending 并保存错误，启动后继续。下载状态 active → completed / ended / abandoned，拥有有限 lease_until 与 protect_until。文件移动归属不改变 attempt 的 file_id，结束结果仍更新该文件。
 
-错误：422 输入/完整性不符；401 未加入或凭证失效；403 来源/CSRF；404 不存在、跨组、过期文件；409 原状态改变或不允许的状态；410 过期上传/旧协议；429 配对限流；507 额度/磁盘不足。API 与下载 404 即使 Accept=text/html 也不回落到 SPA。
+错误：413 超出当前单文件限制；422 输入/完整性不符；401 未加入或凭证失效；403 来源/CSRF 或上传暂停；404 不存在、跨组、过期文件；409 原状态改变或不允许的状态；410 过期上传/旧协议；429 配对限流；507 额度/磁盘不足。API 与下载 404 即使 Accept=text/html 也不回落到 SPA。
+
+
+## 有效上传策略与管理接口
+
+`GET /api/v1/config` 返回 `{code, detail: {config, meta}}`；公开 config 包含站点名称、简介、通知、首页管理入口，以及 `upload_size`、`storage_limit`、`open_upload`。单位为整数字节；`meta.version` 为运行版本。公开配置不含管理员凭证、存储凭证或部署参数。首页开始处理每个队列项及重试前重新读取策略，服务端在新建、后续分片和最终发布阶段强制检查。
+
+管理员使用独立 Bearer Token。保留以下 `/admin` 接口：
+
+| 方法与路径 | 输入 / 结果 |
+| --- | --- |
+| POST `/login` | password；返回 token、expires_at、expires_in |
+| GET `/verify`、POST `/logout` | 管理员会话校验和前端登出 |
+| GET `/dashboard` | active_files、pending_files、published_bytes、reserved_bytes、occupied_bytes、available_bytes、disk_free_bytes、sys_start、当前限制和固定保留规则 |
+| GET `/file/list` | page≥1、size 1–100、keyword、status；返回 files、total |
+| GET `/file/detail?id=…` | 只读文件元数据、status、cleanup_error，不返回配对口令和凭证 |
+| GET / HEAD `/file/download?id=…` | 管理员下载，同样使用租约并在首次完整发送后计时 |
+| DELETE `/file/delete` | JSON `{id}`，标记待删 |
+| POST `/file/batch-delete` | JSON `{ids}`，最多 100 项，返回 deleted 和逐项 failed |
+| GET `/config/get` | 允许编辑的配置和只读 data_root；密码字段始终为空 |
+| PATCH `/config/update` | 仅允许 name、description、notify_title、notify_content、admin_token、admin_session_expire、show_admin_addr、open_upload、upload_size、storage_limit；其他字段 422 |
+
+文件状态为 waiting、retry、expired、pending、cleanup_failed，筛选还支持 all。修改密码会轮换管理员 JWT 签名密钥，已配对设备不受影响。移除的管理 API 返回 JSON 404，不提供旧协议兼容别名。

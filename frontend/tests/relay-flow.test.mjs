@@ -15,6 +15,7 @@ async function harness(overrides = {}, hash = async () => 'hash') {
   const window = new EventTarget()
   const auth = { paired: true, csrf: 'csrf-a', session_id: 'a', passcode: '007' }
   const service = {
+    policy: async () => ({ upload_size: 1_000_000_000, storage_limit: 500_000_000_000, open_upload: 1 }),
     session: async () => auth,
     list: async () => ({ session_id: 'a', files: [] }),
     approvals: async () => [],
@@ -194,5 +195,42 @@ test('page-wide dragover accepts files and preserves ordinary text dragging', as
   const unpaired = drag(['Files'])
   window.dispatchEvent(unpaired)
   assert.equal(unpaired.dataTransfer.dropEffect, 'none')
+  unmount()
+})
+
+test('remote file limit rejects before hashing and retry uses the raised limit', async () => {
+  let hashes = 0, starts = 0, limit = 10_000_000
+  const { flow, unmount } = await harness({
+    policy: async () => ({ upload_size: limit, storage_limit: 500_000_000_000, open_upload: 1 }),
+    start: async () => { starts++; throw new Error('upload reached') }
+  }, async () => { hashes++; return 'hash' })
+  flow.addFiles([{ name: 'too-large', size: 10_000_001 }])
+  await flush()
+  assert.equal(flow.queue.value[0].state, '失败')
+  assert.match(flow.queue.value[0].error, /10000000/)
+  assert.equal(hashes, 0)
+  assert.equal(starts, 0)
+  limit = 11_000_000
+  flow.retry(flow.queue.value[0])
+  await flush()
+  assert.equal(hashes, 1)
+  assert.equal(starts, 1)
+  unmount()
+})
+
+test('failed or paused policy stops before hashing without using a fallback', async () => {
+  let hashes = 0
+  const { flow, service, unmount } = await harness({}, async () => { hashes++; return 'hash' })
+  service.policy = async () => { throw new Error('configuration offline') }
+  flow.addFiles([{ name: 'small', size: 1 }])
+  await flush()
+  assert.equal(flow.queue.value[0].state, '失败')
+  assert.equal(flow.policy.value, null)
+  assert.equal(hashes, 0)
+  service.policy = async () => ({ upload_size: 100, storage_limit: 1000, open_upload: 0 })
+  flow.retry(flow.queue.value[0])
+  await flush()
+  assert.match(flow.queue.value[0].error, /暂停/)
+  assert.equal(hashes, 0)
   unmount()
 })

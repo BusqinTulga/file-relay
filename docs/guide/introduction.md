@@ -1,3 +1,5 @@
+> 历史参考：本文为旧 FileCodeBox 文档，不代表当前 FileRelay 功能。现行说明见 [运行与升级](/guide/filerelay) 和 [接口契约](/api/relay)。
+
 <div align="center">
 
 <img src="/screenshots/retrieve.webp" alt="FileCodeBox" width="860" />

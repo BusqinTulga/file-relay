@@ -56,9 +56,9 @@ onMounted(() => {
         </span>
         <span>
           <span class="block text-base font-semibold tracking-tight sm:text-lg"
-            >FileRelay 文件接力</span
+            >{{ config.name }}</span
           >
-          <span class="theme-text-muted mt-0.5 block text-xs">在你的设备之间，轻松传递文件</span>
+          <span class="theme-text-muted mt-0.5 block text-xs">{{ config.description }}</span>
         </span>
       </RouterLink>
       <div v-if="showGlobalControls" class="ml-auto flex items-center gap-2 sm:gap-3">

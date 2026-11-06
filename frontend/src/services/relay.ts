@@ -1,3 +1,8 @@
+export interface RelayPolicy {
+  upload_size: number
+  storage_limit: number
+  open_upload: number
+}
 // Deliberately independent of the administrator's Bearer client and 401 events.
 export interface RelaySession {
   paired: boolean
@@ -33,6 +38,22 @@ export class RelayError extends Error {
 let csrf = ''
 let sessionID = ''
 export const RelayService = {
+  async policy(): Promise<RelayPolicy> {
+    const response = await fetch('/api/v1/config', {
+      cache: 'no-store',
+      credentials: 'same-origin'
+    })
+    if (!response.ok) throw new RelayError(response.status, '无法读取上传限制，请重试')
+    const data = (await response.json()).detail?.config
+    if (
+      !data ||
+      !Number.isSafeInteger(data.upload_size) ||
+      data.upload_size <= 0 ||
+      ![0, 1].includes(data.open_upload)
+    )
+      throw new Error('上传配置无效，请重试')
+    return data
+  },
   async request<T>(
     path: string,
     method = 'GET',

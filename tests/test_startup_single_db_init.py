@@ -41,11 +41,7 @@ class StartupSingleInitTests(unittest.TestCase):
             with (
                 mock.patch.object(main, "init_db", fake_init_db),
                 mock.patch.object(main, "load_config", fake_load_config),
-                mock.patch.object(main, "delete_expire_files", _idle_task),
-                mock.patch.object(main, "clean_incomplete_uploads", _idle_task),
-                mock.patch.object(
-                    main, "clean_expired_presign_sessions", _idle_task
-                ),
+                mock.patch.object(main, "cleanup_loop", _idle_task),
                 mock.patch.object(main.Tortoise, "init") as tortoise_init,
                 mock.patch.object(
                     main.Tortoise, "close_connections"

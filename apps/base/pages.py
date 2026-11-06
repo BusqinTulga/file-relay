@@ -19,7 +19,7 @@ from apps.base.setup_wizard import (
     setup_response,
 )
 from core.response import APIResponse
-from core.settings import BASE_DIR, DEFAULT_CONFIG, settings
+from core.settings import BASE_DIR, settings
 from core.version import APP_VERSION
 
 router = APIRouter()
@@ -48,7 +48,7 @@ async def setup_submit(request: Request):
         return setup_response(build_setup_page("两次输入的管理员密码不一致", data), 400)
 
     try:
-        setup_options = parse_setup_options({"expire_style": ["day"], **data})
+        setup_options = parse_setup_options(data)
         await initialize_system(
             admin_password=admin_password,
             site_name=site_name,
@@ -62,15 +62,7 @@ async def setup_submit(request: Request):
     return setup_response(build_setup_success_page())
 
 def resolve_theme_root():
-    themes_root = (BASE_DIR / "themes").resolve()
-    theme_root = (BASE_DIR / str(settings.themes_select)).resolve()
-    try:
-        theme_root.relative_to(themes_root)
-    except ValueError:
-        theme_root = (BASE_DIR / DEFAULT_CONFIG["themes_select"]).resolve()
-    if not theme_root.exists():
-        theme_root = (BASE_DIR / DEFAULT_CONFIG["themes_select"]).resolve()
-    return theme_root
+    return (BASE_DIR / "themes" / "2024").resolve()
 
 
 def resolve_theme_file(*parts: str):
@@ -181,9 +173,9 @@ async def index(request=None, exc=None):
         stat_result.st_size,
         str(settings.name),
         str(settings.description),
-        str(settings.keywords),
-        str(settings.opacity),
-        str(settings.background),
+        "",
+        "0.9",
+        "",
     )
     return HTMLResponse(
         content=content,
@@ -193,7 +185,7 @@ async def index(request=None, exc=None):
 
 @router.get("/robots.txt")
 async def robots():
-    return HTMLResponse(content=settings.robots_text, media_type="text/plain")
+    return HTMLResponse(content="User-agent: *\nDisallow: /", media_type="text/plain")
 
 
 @router.post("/")
@@ -217,7 +209,7 @@ async def health_check():
         detail={
             "status": "ok",
             "version": APP_VERSION,
-            "storage": settings.file_storage,
-            "theme": settings.themes_select,
+            "storage": "local",
+            "theme": "themes/2024",
         }
     )

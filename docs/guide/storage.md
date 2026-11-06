@@ -1,3 +1,5 @@
+> 历史参考：本文为旧 FileCodeBox 文档，不代表当前 FileRelay 功能。现行说明见 [运行与升级](/guide/filerelay) 和 [接口契约](/api/relay)。
+
 # 存储配置
 
 FileCodeBox 支持多种存储后端，您可以根据需求选择合适的存储方式。本文档将详细介绍各种存储后端的配置方法。

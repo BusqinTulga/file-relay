@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { RelayService, RelayError } from '@/services'
-import type { RelayFile, RelaySession } from '@/services'
+import type { RelayFile, RelaySession, RelayPolicy } from '@/services'
 import { hashRelayFile } from '@/utils/relay-sha256'
 
 interface QueueItem {
@@ -21,6 +21,7 @@ export function useRelay() {
   const queue = ref<QueueItem[]>([])
   const error = ref('')
   const refreshState = ref('正在连接…')
+  const policy = ref<RelayPolicy | null>(null)
   const busy = ref(false)
   const queueRunning = ref(false)
   let generation = 0,
@@ -78,6 +79,7 @@ export function useRelay() {
         }
         return
       }
+      policy.value = await RelayService.policy()
       const current = await RelayService.session()
       if (epoch !== generation) return
       if (!current.paired) {
@@ -127,6 +129,7 @@ export function useRelay() {
   }
   async function initialize() {
     try {
+      policy.value = await RelayService.policy()
       const current = await RelayService.session()
       session.value = current
       mode.value = current.paired ? 'relay' : 'pair'
@@ -204,6 +207,14 @@ export function useRelay() {
           if (epoch !== generation) throw new DOMException('配对已改变', 'AbortError')
         }
         try {
+          policy.value = null
+          policy.value = await RelayService.policy()
+          check()
+          if (!policy.value.open_upload) throw new Error('上传已暂停，请稍后重试')
+          if (item.file.size > policy.value.upload_size)
+            throw new Error(
+              `单文件上限为 ${policy.value.upload_size} 字节（${policy.value.upload_size / 1_000_000} MB）`
+            )
           item.state = '校验文件'
           item.error = ''
           const sha = await hashRelayFile(item.file, controller.signal, (p) => {
@@ -257,6 +268,14 @@ export function useRelay() {
         } catch (e) {
           item.state = controller.signal.aborted || epoch !== generation ? '已取消' : '失败'
           item.error = e instanceof Error ? e.message : '上传失败'
+          if (e instanceof RelayError && (e.status === 413 || e.status === 403)) {
+            policy.value = null
+            try {
+              policy.value = await RelayService.policy()
+            } catch {
+              /* explicit unknown policy */
+            }
+          }
           if (e instanceof RelayError && (e.status === 401 || e.status === 409)) handleError(e)
         } finally {
           item.controller = undefined
@@ -273,13 +292,13 @@ export function useRelay() {
         key: ++serial,
         file,
         progress: 0,
-        state: file.size > 1_000_000_000 ? '失败' : '等待上传',
-        error: file.size > 1_000_000_000 ? '单文件上限为 1 GB' : ''
+        state: '等待上传',
+        error: ''
       })
     void runQueue()
   }
   function retry(item: QueueItem) {
-    if (mode.value !== 'relay' || item.file.size > 1_000_000_000) return
+    if (mode.value !== 'relay') return
     item.state = '等待上传'
     item.progress = 0
     item.error = ''
@@ -335,6 +354,7 @@ export function useRelay() {
     error,
     refreshState,
     busy,
+    policy,
     pair,
     repair,
     resume,

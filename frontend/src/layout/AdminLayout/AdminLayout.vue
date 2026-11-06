@@ -26,10 +26,10 @@
           </span>
           <span class="min-w-0">
             <span class="theme-text-strong block text-sm font-semibold tracking-tight"
-              >FileRelay 文件接力</span
+              >{{ configStore.config.name }}</span
             >
             <span class="theme-text-muted mt-0.5 block text-[10px] leading-4"
-              >在你的设备之间，轻松传递文件</span
+              >{{ configStore.config.description }}</span
             >
           </span>
         </RouterLink>
@@ -44,6 +44,7 @@
           <li v-for="item in menuItems" :key="item.id">
             <RouterLink
               :to="item.redirect"
+              @click="closeMobileSidebar"
               class="flex h-10 w-full items-center rounded-lg border-l-4 px-3 text-sm font-medium"
               :class="route.name === item.id ? 'theme-nav-item-active' : 'theme-nav-item'"
             >
@@ -132,14 +133,13 @@ import {
   MenuIcon,
   XIcon,
   FolderIcon,
-  HardDriveIcon,
   CogIcon,
   LayoutDashboardIcon,
-  LogOutIcon,
-  NetworkIcon
+  LogOutIcon
 } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useConfigStore } from '@/stores/configStore'
 import { ROUTE_NAMES, ROUTES } from '@/constants'
 import { useAdminSession } from '@/composables'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -152,6 +152,7 @@ interface MenuItem {
   redirect: string
 }
 
+const configStore = useConfigStore()
 const router = useRouter()
 const route = useRoute()
 const { verifySession, logout } = useAdminSession()
@@ -171,12 +172,6 @@ const menuItems: MenuItem[] = [
     redirect: ROUTES.FILE_MANAGE
   },
   {
-    id: ROUTE_NAMES.LOCAL_SHARE,
-    name: t('admin.localShare.title'),
-    icon: HardDriveIcon,
-    redirect: ROUTES.LOCAL_SHARE
-  },
-  {
     id: ROUTE_NAMES.SETTINGS,
     name: t('admin.settings.title'),
     icon: CogIcon,
@@ -188,6 +183,9 @@ const currentPageTitle = computed(
 )
 
 const isSidebarOpen = ref(true)
+const closeMobileSidebar = () => {
+  if (window.innerWidth < 1024) isSidebarOpen.value = false
+}
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
 }

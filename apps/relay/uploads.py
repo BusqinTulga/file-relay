@@ -6,7 +6,6 @@ import os
 import shutil
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -17,7 +16,8 @@ from tortoise.transactions import in_transaction
 from apps.base.models import FileCodes, RelayChunk, RelayDevice, RelaySession, RelayUpload
 from apps.relay import config
 from apps.relay.auth import csrf, device_session, state_lock
-from core.settings import data_root
+from core.settings import data_root, settings
+from apps.relay.policy import check_upload
 
 router = APIRouter(prefix="/api/relay")
 ROOT = data_root / "relay"
@@ -85,7 +85,7 @@ async def upload_view(upload):
 class UploadInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     name: str = Field(min_length=1, max_length=255)
-    size: int = Field(ge=0, le=config.MAX_FILE)
+    size: int = Field(ge=0)
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     chunked: bool = True
 
@@ -106,6 +106,8 @@ async def start_upload(data: UploadInput, auth=Depends(device_session)):
     session, device = auth
     async with state_lock:
         await assert_current(session, device)
+        if data.size > config.MAX_FILE:
+            check_upload(data.size)
         existing = await RelayUpload.filter(
             group_id=device.group_id, device_id=device.id, session_hash=session.token_hash,
             name=data.name, size=data.size, sha256=data.sha256,
@@ -114,9 +116,13 @@ async def start_upload(data: UploadInput, auth=Depends(device_session)):
             if not await FileCodes.filter(id=existing.file_id, relay_group_id=device.group_id,
                     delete_state="active", relay_expires__gt=config.now()).exists():
                 existing = None
-        if existing:
+        if existing and existing.state == "completed":
             return await upload_view(existing)
-        if await used_capacity() + data.size > config.MAX_STORAGE:
+        if existing:
+            await enforce_policy(existing)
+            return await upload_view(existing)
+        check_upload(data.size)
+        if await used_capacity() + data.size > settings.storage_limit:
             raise HTTPException(507, "全站容量不足，请等待到期清理")
         ROOT.mkdir(parents=True, exist_ok=True)
         # Account for all outstanding promises as well as merge duplication.
@@ -138,11 +144,22 @@ async def get_upload(upload_id: str, auth=Depends(device_session)):
     return await upload_view(await owned_upload(upload_id, auth))
 
 
+async def enforce_policy(upload):
+    try:
+        check_upload(upload.size)
+    except HTTPException as exc:
+        if exc.status_code == 413:
+            await RelayUpload.filter(id=upload.id).exclude(state__in=["completed", "cleaned"]).update(
+                state="cancelled", error=exc.detail)
+        raise
+
+
 async def write_chunk(upload_id, index, request, auth):
     async with upload_lock(upload_id):
         upload = await owned_upload(upload_id, auth)
         if upload.state != "uploading":
             raise HTTPException(409, "上传状态不允许写入")
+        await enforce_policy(upload)
         count = max(1, math.ceil(upload.size / upload.chunk_size))
         if index < 0 or index >= count:
             raise HTTPException(422, "分片索引无效")
@@ -170,6 +187,7 @@ async def write_chunk(upload_id, index, request, auth):
                 upload = await owned_upload(upload_id, auth)
                 if upload.state != "uploading":
                     raise HTTPException(409, "上传已取消")
+                await enforce_policy(upload)
                 os.replace(partial, target)
                 await RelayChunk.update_or_create(upload_id=upload.id, index=index,
                     defaults={"size": length, "sha256": hasher.hexdigest()})
@@ -236,6 +254,7 @@ async def complete(upload_id: str, auth=Depends(device_session)):
         if upload.state not in {"uploading", "merging"}:
             raise HTTPException(409, "上传已取消或过期")
         chunks = await RelayChunk.filter(upload_id=upload.id).order_by("index")
+        await enforce_policy(upload)
         count = max(1, math.ceil(upload.size / upload.chunk_size))
         if [c.index for c in chunks] != list(range(count)):
             raise HTTPException(422, "分片不完整")
@@ -244,18 +263,18 @@ async def complete(upload_id: str, auth=Depends(device_session)):
             raise HTTPException(409, "上传状态已改变")
         try:
             await asyncio.to_thread(merge_and_verify, upload, chunks)
-            async with state_lock, in_transaction():
+            async with state_lock:
                 current = await owned_upload(upload_id, auth)
                 if current.state != "merging":
                     raise HTTPException(409, "上传已取消")
-                stamp = config.now()
-                file = await FileCodes.create(code=str(uuid.uuid4()), prefix=upload.name, size=upload.size,
-                    file_path="relay/files", uuid_file_name=upload.id, file_hash=upload.sha256,
-                    upload_id=upload.id, is_chunked=upload.size > upload.chunk_size,
-                    relay_group_id=upload.group_id, uploader_device_id=upload.device_id,
-                    published=stamp, relay_expires=stamp + config.FILE_TTL,
-                    expired_at=datetime.fromtimestamp(stamp + config.FILE_TTL, timezone.utc), expired_count=-1)
-                await RelayUpload.filter(id=upload.id).update(state="completed", file_id=file.id, error="")
+                await enforce_policy(current)
+                async with in_transaction():
+                    stamp = config.now()
+                    file = await FileCodes.create(prefix=upload.name, size=upload.size,
+                        file_hash=upload.sha256, upload_id=upload.id,
+                        relay_group_id=upload.group_id, uploader_device_id=upload.device_id,
+                        published=stamp, relay_expires=stamp + config.FILE_TTL)
+                    await RelayUpload.filter(id=upload.id).update(state="completed", file_id=file.id, error="")
         except Exception as exc:
             await RelayUpload.filter(id=upload.id, state="merging").update(state="uploading", error=str(exc)[:500])
             if isinstance(exc, HTTPException):

@@ -22,17 +22,11 @@ from apps.base.config import (
 from apps.base.models import KeyValue
 from apps.base.pages import not_found_handler, router as pages_router
 from apps.base.setup_wizard import build_setup_page, is_setup_path, setup_response, wants_html_response
-from apps.base.tasks import (
-    clean_expired_presign_sessions,
-    clean_incomplete_uploads,
-    delete_expire_files,
-)
 from apps.relay.auth import router as relay_auth
 from apps.relay.uploads import router as relay_uploads
 from apps.relay.files import router as relay_files
 from apps.relay.cleanup import cleanup_loop
 from core.database import db_startup_lock, init_db
-from core.errors import StorageError
 from core.logger import get_log_level_name, is_access_log_enabled, logger
 from core.settings import settings
 from core.version import APP_VERSION
@@ -51,23 +45,14 @@ async def lifespan(app: FastAPI):
         await load_config()
     # 启动后台任务
     relay_cleanup_task = asyncio.create_task(cleanup_loop())
-    task = asyncio.create_task(delete_expire_files())
-    chunk_cleanup_task = asyncio.create_task(clean_incomplete_uploads())
-    presign_cleanup_task = asyncio.create_task(clean_expired_presign_sessions())
     logger.info("应用初始化完成")
 
     try:
         yield
     finally:
         relay_cleanup_task.cancel()
-        task.cancel()
-        chunk_cleanup_task.cancel()
-        presign_cleanup_task.cancel()
         await asyncio.gather(
             relay_cleanup_task,
-            task,
-            chunk_cleanup_task,
-            presign_cleanup_task,
             return_exceptions=True,
         )
         await Tortoise.close_connections()
@@ -104,13 +89,6 @@ app = FastAPI(
     version=APP_VERSION,
     exception_handlers=tortoise_exception_handlers(),
 )
-
-
-@app.exception_handler(StorageError)
-async def storage_error_handler(request, exc: StorageError):
-    # Render StorageError exactly like FastAPI renders HTTPException so the
-    # framework-free storage layer keeps identical client-visible responses.
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 @app.middleware("http")

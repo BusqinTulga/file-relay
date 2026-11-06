@@ -1,3 +1,5 @@
+> Historical FileCodeBox reference. It does not describe the current FileRelay feature set. See [current operations](/guide/filerelay) and [API contract](/api/relay).
+
 # File Sharing
 
 FileCodeBox provides simple and easy-to-use file and text sharing functionality. Users can securely share and retrieve files using extraction codes.

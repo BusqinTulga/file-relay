@@ -1,107 +1,25 @@
-import type { ConfigState } from '@/types'
-
-export type FileSizeUnit = 'KB' | 'MB' | 'GB'
-export type SaveTimeUnit = '秒' | '分' | '时' | '天'
-
-export type FileSizeForm = {
-  value: number
-  unit: FileSizeUnit
+export type FileSizeUnit = 'B' | 'KB' | 'MB' | 'GB'
+const powers = { B: 0, KB: 3, MB: 6, GB: 9 }
+export function bytesToFileSizeForm(bytes: number): { value: number; unit: FileSizeUnit } {
+  const unit: FileSizeUnit = bytes >= 1e9 ? 'GB' : bytes >= 1e6 ? 'MB' : bytes >= 1e3 ? 'KB' : 'B'
+  return { value: bytes / 10 ** powers[unit], unit }
 }
-
-export type SaveTimeForm = {
-  value: number
-  unit: SaveTimeUnit
-}
-
-const FILE_SIZE_UNITS: Record<FileSizeUnit, number> = {
-  KB: 1024,
-  MB: 1024 * 1024,
-  GB: 1024 * 1024 * 1024
-}
-
-const SAVE_TIME_UNITS: Record<SaveTimeUnit, number> = {
-  秒: 1,
-  分: 60,
-  时: 3600,
-  天: 86400
-}
-
-export function bytesToFileSizeForm(bytes: number): FileSizeForm {
-  if (bytes >= FILE_SIZE_UNITS.GB) {
-    return {
-      value: Math.round(bytes / FILE_SIZE_UNITS.GB),
-      unit: 'GB'
-    }
-  }
-
-  if (bytes >= FILE_SIZE_UNITS.MB) {
-    return {
-      value: Math.round(bytes / FILE_SIZE_UNITS.MB),
-      unit: 'MB'
-    }
-  }
-
-  return {
-    value: Math.round(bytes / FILE_SIZE_UNITS.KB),
-    unit: 'KB'
-  }
-}
-
 export function fileSizeFormToBytes(value: number, unit: FileSizeUnit): number {
-  return value * FILE_SIZE_UNITS[unit]
-}
-
-export function secondsToSaveTimeForm(seconds: number): SaveTimeForm {
-  if (seconds === 0) {
-    return {
-      value: 7,
-      unit: '天'
-    }
+  // Work with decimal digits so untouched legacy byte values survive a round trip.
+  const match = String(value).match(/^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i)
+  const fail = () => {
+    throw new Error('请输入可精确表示为整数字节的正数')
   }
-
-  if (seconds % SAVE_TIME_UNITS.天 === 0 && seconds >= SAVE_TIME_UNITS.天) {
-    return {
-      value: seconds / SAVE_TIME_UNITS.天,
-      unit: '天'
-    }
-  }
-
-  if (seconds % SAVE_TIME_UNITS.时 === 0 && seconds >= SAVE_TIME_UNITS.时) {
-    return {
-      value: seconds / SAVE_TIME_UNITS.时,
-      unit: '时'
-    }
-  }
-
-  if (seconds % SAVE_TIME_UNITS.分 === 0 && seconds >= SAVE_TIME_UNITS.分) {
-    return {
-      value: seconds / SAVE_TIME_UNITS.分,
-      unit: '分'
-    }
-  }
-
-  return {
-    value: seconds,
-    unit: '秒'
-  }
-}
-
-export function saveTimeFormToSeconds(value: number, unit: SaveTimeUnit): number {
-  if (value === 0) {
-    return 7 * SAVE_TIME_UNITS.天
-  }
-
-  return value * SAVE_TIME_UNITS[unit]
-}
-
-export function buildConfigSubmitPayload(
-  config: ConfigState,
-  fileSize: FileSizeForm,
-  saveTime: SaveTimeForm
-): ConfigState {
-  return {
-    ...config,
-    upload_size: fileSizeFormToBytes(fileSize.value, fileSize.unit),
-    max_save_seconds: saveTimeFormToSeconds(saveTime.value, saveTime.unit)
-  }
+  if (!match) return fail()
+  const fraction = match[2] || ''
+  const exponent = Number(match[3] || 0) + powers[unit] - fraction.length
+  if (Math.abs(exponent) > 30) return fail()
+  let bytes = BigInt(match[1] + fraction)
+  if (exponent < 0) {
+    const divisor = 10n ** BigInt(-exponent)
+    if (bytes % divisor !== 0n) return fail()
+    bytes /= divisor
+  } else bytes *= 10n ** BigInt(exponent)
+  if (bytes <= 0n || bytes > BigInt(Number.MAX_SAFE_INTEGER)) return fail()
+  return Number(bytes)
 }

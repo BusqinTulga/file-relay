@@ -1,3 +1,5 @@
+> Historical FileCodeBox reference. It does not describe the current FileRelay feature set. See [current operations](/guide/filerelay) and [API contract](/api/relay).
+
 # Admin Panel
 
 FileCodeBox provides a fully-featured admin panel that allows administrators to conveniently manage files, view system status, and modify configurations. This document introduces the various features and usage of the admin panel.

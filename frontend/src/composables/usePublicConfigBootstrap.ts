@@ -7,7 +7,8 @@ export function usePublicConfigBootstrap() {
   const configStore = useConfigStore()
 
   const syncPublicConfig = async () => {
-    const res = await ConfigService.getUserConfig()
+    const res = await ConfigService.getUserConfig().catch(() => null)
+    if (!res) return
 
     if (res.code !== 200 || !res.detail) {
       return

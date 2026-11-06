@@ -94,7 +94,7 @@ def test_real_startup_restart_backup_and_disconnect(tmp_path):
         assert c.get('/').status_code == 200
     import sqlite3
     with sqlite3.connect(backup/'filecodebox.db') as db:
-        assert db.execute('SELECT COUNT(*) FROM migrates').fetchone()[0] == 9
+        assert db.execute('SELECT COUNT(*) FROM migrates').fetchone()[0] == 10
 
     # Persist a pending deletion plus an abandoned lease, then exercise actual startup cleanup.
     with sqlite3.connect(backup/'filecodebox.db') as db:

@@ -183,10 +183,11 @@ async def test_bad_chunk_missing_hash_and_quota(initialized_client):
     assert (await a.put(url+'/content', content=b'abc', headers={**h, 'X-Chunk-SHA256': sha(b'abc')})).status_code == 200
     (temp_dir(session['id'])/'0').write_bytes(b'bad')
     assert (await a.post(url+'/complete', headers=h)).status_code == 422
-    with patch.object(config, 'MAX_STORAGE', 3):
+    from core.settings import settings
+    with patch.dict(settings.user_config, {'storage_limit': 3}):
         assert (await a.post('/api/relay/uploads', json={**request, 'name': 'b'}, headers=h)).status_code == 507
     assert await FileCodes.all().count() == 0
-    assert (await a.post('/api/relay/uploads', json={**request, 'size': config.MAX_FILE+1}, headers=h)).status_code == 422
+    assert (await a.post('/api/relay/uploads', json={**request, 'size': config.MAX_FILE+1}, headers=h)).status_code == 413
 
 
 async def test_full_hash_disambiguates_middle_content(initialized_client):
@@ -320,12 +321,12 @@ async def test_admin_deletion_and_download_obey_relay_rules(initialized_client):
     assert r.content == b'hello'
     assert (await FileCodes.get(id=file['id'])).first_sent is not None
     r = await a.patch('/admin/file/update', json={'id': file['id'], 'expired_at': '2099-01-01T00:00:00'}, headers=h)
-    assert r.status_code == 409
+    assert r.status_code == 404
     r = await a.patch('/admin/file/policy-action', json={'id': file['id'], 'action': 'make_permanent'}, headers=h)
-    assert r.status_code == 409
+    assert r.status_code == 404
     dashboard = (await a.get('/admin/dashboard', headers=h)).json()['detail']
-    assert dashboard['relay_capacity'] == config.MAX_STORAGE
-    assert dashboard['relay_occupied'] == file['size']
+    assert dashboard['storage_limit'] == config.MAX_STORAGE
+    assert dashboard['occupied_bytes'] == file['size']
     r = await a.request('DELETE', '/admin/file/delete', json={'id': file['id']}, headers=h)
     assert r.status_code == 200
     assert (await FileCodes.get(id=file['id'])).delete_state == 'pending'

@@ -1,17 +1,10 @@
-"""Cross-cutting auth primitives and the share-upload gate.
-
-Lives in apps.base because BOTH the share surface (base.views) and the
-admin surface (admin.views) consume it; keeping it here avoids the
-base → admin reverse dependency. Admin-only session gating stays in
-apps.admin.dependencies, which re-exports these primitives for
-compatibility.
-"""
+"""Administrator JWT primitives, independent of device credentials."""
 import base64
 import hmac
 import json
 import time
 
-from fastapi import Header, HTTPException
+from fastapi import HTTPException
 
 from core.settings import (
     ADMIN_SESSION_EXPIRE_DEFAULT,
@@ -127,24 +120,3 @@ def _require_admin_payload(authorization: str) -> dict:
     if not payload.get("is_admin", False):
         raise HTTPException(status_code=401, detail="未授权或授权校验失败")
     return payload
-
-
-async def share_required_login(authorization: str = Header(default=None)):
-    """
-    验证分享上传权限
-
-    当 settings.open_upload 为False时，要求用户必须登录并具有管理员权限
-    当 settings.open_upload 为True时，允许游客上传
-
-    :param authorization: 认证头信息
-    :param request: 请求对象
-    :return: 验证结果
-    """
-    if not settings.open_upload:
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(
-                status_code=403, detail="本站未开启游客上传，如需上传请先登录后台"
-            )
-        _require_admin_payload(authorization)
-
-    return True

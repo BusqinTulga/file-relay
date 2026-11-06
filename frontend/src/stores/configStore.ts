@@ -28,6 +28,7 @@ export const useConfigStore = defineStore('config', () => {
       ...toPublicConfig(nextConfig)
     }
     writeStoredConfig(config.value)
+    document.title = config.value.name
   }
 
   const applyRemoteConfig = (nextConfig: Partial<ConfigState>): string | null => {

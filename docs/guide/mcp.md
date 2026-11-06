@@ -1,3 +1,5 @@
+> 历史参考：本文为旧 FileCodeBox 文档，不代表当前 FileRelay 功能。现行说明见 [运行与升级](/guide/filerelay) 和 [接口契约](/api/relay)。
+
 # MCP 接入
 
 FileCodeBox 提供 **Model Context Protocol (MCP)** 接口，支持通过 Streamable HTTP 让兼容的 AI 客户端创建文本或文件分享。

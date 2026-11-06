@@ -1,90 +1,11 @@
----
-layout: home
+# FileRelay
 
-hero:
-  name: "FileCodeBox"
-  text: "Share files like picking up a package"
-  tagline: A lightweight, modern, self-hosted service for files and text
-  image:
-    src: /logo_small.png
-    alt: FileCodeBox
-  actions:
-    - theme: brand
-      text: Get Started
-      link: /en/guide/getting-started
-    - theme: alt
-      text: Live Demo
-      link: https://share.lanol.cn
-    - theme: alt
-      text: Deployment Guide
-      link: /en/guide/getting-started#docker-deployment-recommended
+Pair browsers with the same 1–4 digit passcode. The first two browsers join directly; later browsers require approval. Upload files independently, resume transfers and download from the shared list.
 
-features:
-  - icon: 01
-    title: Share instantly
-    details: Files and text in one flow, with batch, chunked, and resumable uploads
-  - icon: 02
-    title: Flexible expiry
-    details: Expire by time or retrieval count, or keep content permanently
-  - icon: 03
-    title: Own your data
-    details: Local, S3, OneDrive, WebDAV, and OpenDAL storage
----
+Local storage, SQLite and one worker. Administration has three pages: overview, files and settings. Defaults are 1 GB per file and 500 GB per site; administrators can lower both limits, effective immediately. Files last up to 24 hours or 10 minutes after the first complete download, whichever is earlier.
 
-## Start in 30 seconds
+- [Operations, backup and upgrade guide](../guide/filerelay.md)
+- [API contract](../api/relay.md)
+- [Code and database cleanup results](../admin-cleanup-status.md)
 
-```bash
-docker run -d --restart unless-stopped \
-  -p 12345:12345 \
-  -v ./data:/app/data \
-  -e APP_ENV=production \
-  -e LOG_LEVEL=warning \
-  --log-opt max-size=10m \
-  --log-opt max-file=3 \
-  --name filecodebox \
-  lanol/filecodebox:2.8.5 # x-release-please-version
-```
-
-Open `http://localhost:12345` and complete the first-run setup.
-
-<div class="doc-paths">
-  <a class="doc-path" href="/en/guide/getting-started">
-    <span>Get started</span>
-    <strong>Deploy, initialize, and upgrade</strong>
-    <small>Run FileCodeBox from a clean server →</small>
-  </a>
-  <a class="doc-path" href="/en/guide/storage">
-    <span>Operate</span>
-    <strong>Storage, configuration, and security</strong>
-    <small>Choose production-ready storage and protection →</small>
-  </a>
-  <a class="doc-path" href="/en/api/">
-    <span>Integrate</span>
-    <strong>API and upload workflows</strong>
-    <small>Build on sharing, chunked uploads, and administration →</small>
-  </a>
-</div>
-
-## Interface preview
-
-<p align="center">
-  <img src="/screenshots/retrieve.webp" alt="Retrieve files" width="860" />
-</p>
-
-<p align="center">
-  <img src="/screenshots/send.webp" alt="Send files" width="48%" />
-  &nbsp;
-  <img src="/screenshots/dashboard.webp" alt="Admin dashboard" width="48%" />
-</p>
-
-<table>
-<tr>
-<td width="33%"><img src="/screenshots/login.webp" alt="Admin login" /></td>
-<td width="33%"><img src="/screenshots/files.webp" alt="File management" /></td>
-<td width="33%"><img src="/screenshots/settings.webp" alt="System settings" /></td>
-</tr>
-</table>
-
-::: warning Responsible use
-Use FileCodeBox only for lawful file and text sharing. Operators are responsible for deployment security, data compliance, and content moderation.
-:::
+Based on FileCodeBox, retaining upstream author information and LGPL-3.0. Legacy FileCodeBox documentation outside the current navigation is historical reference only.

@@ -8,7 +8,7 @@ from tortoise import Tortoise
 from core.database import execute_migrations
 from tests.helpers import MEMORY_DB_CONFIG, close_db
 
-EXPECTED = [f"migrations_{i:03d}.py" for i in range(1, 10)]
+EXPECTED = [f"migrations_{i:03d}.py" for i in range(1, 11)]
 
 
 @pytest.fixture
@@ -97,9 +97,9 @@ class TestMigrationRunner:
         assert {
             "filecodes",
             "keyvalue",
-            "uploadchunk",
-            "presignuploadsession",
-            "storagereservation",
+            "relayupload",
+            "relaychunk",
+            "downloadattempt",
             "migrates",
         } <= tables
 
@@ -117,7 +117,7 @@ class TestMigrationRunner:
         real_import = importlib.import_module
 
         def fake_import(name):
-            if name.endswith("migrations_009"):
+            if name.endswith("migrations_010"):
                 class FakeMod:
                     @staticmethod
                     async def migrate():
@@ -130,4 +130,4 @@ class TestMigrationRunner:
         with pytest.raises(RuntimeError, match="boom"):
             await execute_migrations()
         # 失败的迁移不得登记
-        assert "migrations_009.py" not in await _registered()
+        assert "migrations_010.py" not in await _registered()

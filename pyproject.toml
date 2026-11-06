@@ -19,7 +19,6 @@ dev = [
     "httpx",
     "ruff",
     "pre-commit",
-    "moto[s3,server]",
     "mypy",
 ]
 

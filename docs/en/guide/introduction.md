@@ -1,3 +1,5 @@
+> Historical FileCodeBox reference. It does not describe the current FileRelay feature set. See [current operations](/guide/filerelay) and [API contract](/api/relay).
+
 <div align="center">
 
 <img src="/screenshots/retrieve.webp" alt="FileCodeBox" width="860" />

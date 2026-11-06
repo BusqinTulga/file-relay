@@ -1,52 +1,14 @@
 import asyncio
 import unittest
 from pathlib import Path
-
 from fastapi import HTTPException
-
 from apps.admin import views as admin_views
 from apps.admin.schemas import LoginData
 from apps.base.dependencies import IPRateLimit
-from apps.base.file_validation import detect_file_kind, validate_file_magic, validate_file_type
 from apps.base.utils import ip_limit
 from core.settings import settings
 from core.utils import hash_password
-
-
 from tests.helpers import SettingsOverrideMixin
-
-
-class MagicBytesTests(SettingsOverrideMixin, unittest.TestCase):
-    def test_detects_common_signatures(self):
-        self.assertEqual(detect_file_kind(b"\x89PNG\r\n\x1a\nxxxx").name, "png")
-        self.assertEqual(detect_file_kind(b"\xff\xd8\xff\xe0xxxx").name, "jpg")
-        self.assertEqual(detect_file_kind(b"%PDF-1.7").name, "pdf")
-        self.assertEqual(detect_file_kind(b"PK\x03\x04xxxx").name, "zip")
-        self.assertEqual(detect_file_kind(b"RIFF\x00\x00\x00\x00WEBPxxxx").name, "webp")
-        self.assertEqual(detect_file_kind(b"\x00\x00\x00\x18ftypmp42").name, "mp4")
-
-    def test_rejects_extension_spoofing(self):
-        settings.allowed_file_types = ["*"]
-        with self.assertRaises(HTTPException) as ctx:
-            validate_file_magic("photo.png", "image/png", b"MZ" + b"\x00" * 20)
-        self.assertEqual(ctx.exception.status_code, 403)
-        self.assertIn("扩展名", ctx.exception.detail)
-
-    def test_rejects_content_type_spoofing(self):
-        settings.allowed_file_types = ["*"]
-        with self.assertRaises(HTTPException) as ctx:
-            validate_file_magic("blob.bin", "image/png", b"MZ" + b"\x00" * 20)
-        self.assertEqual(ctx.exception.status_code, 403)
-
-    def test_accepts_matching_png(self):
-        settings.allowed_file_types = [".png", "image/*"]
-        validate_file_magic("a.png", "image/png", b"\x89PNG\r\n\x1a\nxxxx")
-
-    def test_whitelist_still_enforced(self):
-        settings.allowed_file_types = [".png"]
-        with self.assertRaises(HTTPException):
-            validate_file_type("a.exe", "application/x-msdownload")
-
 
 class LoginRateLimitTests(SettingsOverrideMixin, unittest.TestCase):
     def setUp(self):

@@ -1,71 +1,15 @@
-import datetime
-from typing import Any, Optional, Union
-
-from pydantic import BaseModel
-
-
-class IDData(BaseModel):
-    id: int
-
-
-class IDsData(BaseModel):
-    ids: list[int]
-
-
-class ShareItem(BaseModel):
-    expire_value: int
-    expire_style: str = "day"
-    filename: str
-
-
-class DeleteItem(BaseModel):
-    filename: str
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LoginData(BaseModel):
     password: str
 
 
-class UpdateFileData(BaseModel):
+class IDData(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
     id: int
-    code: Optional[str] = None
-    prefix: Optional[str] = None
-    suffix: Optional[str] = None
-    expired_at: Optional[Union[datetime.datetime, str]] = None
-    expired_count: Optional[int] = None
 
 
-class BatchUpdateFileData(BaseModel):
-    ids: list[int]
-    expired_at: Optional[Union[datetime.datetime, str]] = None
-    expired_count: Optional[int] = None
-    clear_expired_at: Optional[bool] = None
-
-
-class FilePolicyActionData(BaseModel):
-    id: int
-    action: str
-    download_limit: Optional[int] = None
-
-
-class BatchFilePolicyActionData(BaseModel):
-    ids: list[int]
-    action: str
-    download_limit: Optional[int] = None
-
-
-class FileMetadataData(BaseModel):
-    id: int
-    note: Optional[str] = None
-    tags: Optional[list[str]] = None
-
-
-class FileViewPresetData(BaseModel):
-    id: Optional[str] = None
-    name: str
-    filters: Optional[dict[str, Any]] = None
-    params: Optional[dict[str, Any]] = None
-
-
-class FileViewPresetDeleteData(BaseModel):
-    id: str
+class IDsData(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    ids: list[int] = Field(min_length=1, max_length=100)

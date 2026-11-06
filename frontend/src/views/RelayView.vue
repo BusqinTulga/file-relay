@@ -12,6 +12,7 @@ const {
   error,
   refreshState,
   busy,
+  policy,
   pair,
   repair,
   resume,
@@ -113,10 +114,11 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
       <section class="panel mb-5 overflow-hidden" aria-label="上传区域">
         <div class="px-5 py-5 sm:px-8">
           <h2 class="mb-3 text-lg font-semibold">文件发送</h2>
-          <FileUploadArea
+          <p class="mb-3 text-xs opacity-65" aria-live="polite">{{ policy ? (policy.open_upload ? `单文件上限 ${policy.upload_size / 1_000_000} MB` : '上传已暂停') : '正在读取上传限制，读取成功后才能上传' }}</p>
+      <FileUploadArea
             class="payload-panel"
             placeholder="点击或拖放文件到此处上传"
-            description="支持各种常见格式，单文件最大 1 GB"
+            :description="policy?.open_upload ? `支持任意格式，单文件上限 ${size(policy.upload_size)}` : '上传暂不可用，请稍后重试'"
             @file-selected="addFiles([$event])"
             @files-selected="addFiles"
           />

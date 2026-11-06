@@ -55,24 +55,8 @@ const routes: RouteRecordRaw[] = [
           title: 'files'
         }
       },
-      {
-        path: 'local',
-        name: ROUTE_NAMES.LOCAL_SHARE,
-        component: () => import('@/views/manage/LocalShareView.vue'),
-        meta: {
-          ...adminPageMeta,
-          title: 'local'
-        }
-      },
-      {
-        path: 'mcp',
-        name: ROUTE_NAMES.MCP,
-        component: () => import('@/views/manage/McpView.vue'),
-        meta: {
-          ...adminPageMeta,
-          title: 'mcp'
-        }
-      },
+      { path: 'local', redirect: ROUTES.DASHBOARD },
+      { path: 'mcp', redirect: ROUTES.DASHBOARD },
       {
         path: 'settings',
         name: ROUTE_NAMES.SETTINGS,

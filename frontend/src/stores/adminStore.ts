@@ -5,10 +5,8 @@ import {
   clearStoredAuth,
   clearStoredToken,
   hasValidStoredAdminSession,
-  readStoredAdminPassword,
   readStoredToken,
   readStoredTokenExpiresAt,
-  writeStoredAdminPassword,
   writeStoredToken
 } from '@/utils/auth-storage'
 
@@ -19,7 +17,6 @@ export const useAdminStore = defineStore('admin', () => {
   // 状态
   const storedSessionIsValid = hasValidStoredAdminSession()
   if (!storedSessionIsValid) clearStoredToken()
-  const adminPassword = ref(readStoredAdminPassword())
   const token = ref(storedSessionIsValid ? readStoredToken() : '')
   const expiresAt = ref(storedSessionIsValid ? readStoredTokenExpiresAt() : null)
   const isLoggedIn = ref(!!token.value)
@@ -52,11 +49,6 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   // 方法
-  const updateAdminPassword = (pwd: string) => {
-    adminPassword.value = pwd
-    writeStoredAdminPassword(pwd)
-  }
-
   const setToken = (newToken: string, newExpiresAt?: number) => {
     token.value = newToken
     expiresAt.value = newExpiresAt ?? null
@@ -76,7 +68,6 @@ export const useAdminStore = defineStore('admin', () => {
 
   const logout = () => {
     clearExpirationTimer()
-    adminPassword.value = ''
     token.value = ''
     expiresAt.value = null
     isLoggedIn.value = false
@@ -101,7 +92,6 @@ export const useAdminStore = defineStore('admin', () => {
 
   return {
     // 状态
-    adminPassword,
     token,
     expiresAt,
     isLoggedIn,
@@ -112,7 +102,6 @@ export const useAdminStore = defineStore('admin', () => {
     hasToken,
 
     // 方法
-    updateAdminPassword,
     setToken,
     setUserInfo,
     login,

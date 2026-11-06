@@ -20,6 +20,7 @@
               : 'bg-zinc-200'
         ]"
         role="switch"
+        :aria-label="label"
         :aria-checked="modelValue === 1"
         @click="$emit('toggle')"
       >

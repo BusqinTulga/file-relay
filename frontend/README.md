@@ -1,55 +1,12 @@
-# filecodeboxfronted
+# FileRelay frontend
 
-This template should help get you started developing with Vue 3 in Vite.
-
-## Recommended IDE Setup
-
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vitejs.dev/config/).
-
-## Project Setup
+Vue 3 + TypeScript + Vite. Use Node 20 and pnpm 9.15.9.
 
 ```sh
-pnpm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
+pnpm install --frozen-lockfile
 pnpm dev
-```
-
-The frontend version comes from `package.json`. Production builds also embed the
-current Git commit. CI can override these values with `VITE_APP_VERSION` and
-`VITE_GIT_COMMIT`.
-
-The FileCodeBox product release workflow builds the latest commit from this
-repository's default branch. Every push is also checked with a production build.
-
-### Type-Check, Compile and Minify for Production
-
-```sh
+pnpm test
 pnpm build
 ```
 
-### Run Regression Tests
-
-```sh
-pnpm test
-```
-
-Uses Node's built-in test runner with isolated VM modules to cover Markdown preview
-sanitization boundaries and safe fallback behavior (including issue #557).
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-pnpm lint
-```
+Vite proxies `/api`, `/admin` and `/setup` to `127.0.0.1:12345`. The production build goes to `../themes/2024` and is served by FastAPI. See [architecture](ARCHITECTURE.md) and [runtime guide](../docs/guide/filerelay.md).

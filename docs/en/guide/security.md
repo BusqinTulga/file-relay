@@ -1,3 +1,5 @@
+> Historical FileCodeBox reference. It does not describe the current FileRelay feature set. See [current operations](/guide/filerelay) and [API contract](/api/relay).
+
 # Security Settings
 
 FileCodeBox provides multiple layers of security mechanisms to protect your file sharing service. This document explains how to properly configure security options to ensure secure system operation.

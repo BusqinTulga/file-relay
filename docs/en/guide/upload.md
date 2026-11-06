@@ -1,3 +1,5 @@
+> Historical FileCodeBox reference. It does not describe the current FileRelay feature set. See [current operations](/guide/filerelay) and [API contract](/api/relay).
+
 # File Upload
 
 FileCodeBox provides multiple flexible file upload methods, supporting both regular upload and chunked upload to meet different scenario requirements.

@@ -1,3 +1,5 @@
+> 历史参考：本文为旧 FileCodeBox 文档，不代表当前 FileRelay 功能。现行说明见 [运行与升级](/guide/filerelay) 和 [接口契约](/api/relay)。
+
 # 文件上传
 
 FileCodeBox 提供了多种灵活的文件上传方式，支持普通上传和分片上传，满足不同场景的需求。

@@ -1,3 +1,5 @@
+> 历史参考：本文为旧 FileCodeBox 文档，不代表当前 FileRelay 功能。现行说明见 [运行与升级](/guide/filerelay) 和 [接口契约](/api/relay)。
+
 # 配置说明
 
 FileCodeBox 提供了丰富的配置选项。请优先通过管理面板修改，避免直接编辑数据库造成类型错误或安全配置失效。

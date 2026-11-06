@@ -9,6 +9,7 @@ handlers then use normally.
 import tests  # noqa: F401 -- isolate data root before importing main
 
 import httpx
+import pytest
 import pytest_asyncio
 
 import main
@@ -63,3 +64,23 @@ async def initialized_client(client):
         yield client
     finally:
         settings.user_config = original_user_config
+
+
+@pytest.fixture(autouse=True)
+def isolated_runtime_settings(monkeypatch):
+    from core.settings import settings
+    from apps.base import config
+    import asyncio
+    from apps.relay import auth, uploads, files, cleanup
+    from apps.admin import views, config_service
+    auth._pair_limits.clear()
+    from apps.base.utils import ip_limit
+    for limiter in ip_limit.values():
+        limiter.ips.clear()
+    lock = asyncio.Lock()
+    for module in (auth, uploads, files, cleanup, views, config_service):
+        monkeypatch.setattr(module, 'state_lock', lock)
+    original = dict(settings.user_config)
+    yield
+    settings.user_config = original
+    config._config_cached_until = 0.0

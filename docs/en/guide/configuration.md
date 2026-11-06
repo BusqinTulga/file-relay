@@ -1,3 +1,5 @@
+> Historical FileCodeBox reference. It does not describe the current FileRelay feature set. See [current operations](/guide/filerelay) and [API contract](/api/relay).
+
 # Configuration Guide
 
 FileCodeBox provides rich configuration options. Prefer the admin panel; directly editing the database can introduce invalid types or break security settings.
