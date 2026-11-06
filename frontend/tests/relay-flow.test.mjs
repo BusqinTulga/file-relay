@@ -69,7 +69,7 @@ async function harness(overrides = {}, hash = async () => 'hash') {
   const flow = module.namespace.useRelay()
   mount()
   await flush()
-  return { flow, service, auth, document, timers, unmount, RelayError }
+  return { flow, service, auth, document, window, timers, unmount, RelayError }
 }
 test('late list response is ignored after selecting re-pair', async () => {
   let release
@@ -150,5 +150,49 @@ test('changed browser cookie clears old list before new list arrives', async () 
   release({ session_id: 'b', files: [{ id: 2 }] })
   await refresh
   assert.equal(flow.files.value[0].id, 2)
+  unmount()
+})
+
+test('page-wide file drop queues each file once and removes listeners on unmount', async () => {
+  const { flow, window, unmount } = await harness({}, () => new Promise(() => {}))
+  const files = [
+    { name: 'page-drop.txt', size: 5 },
+    { name: 'second.txt', size: 8 }
+  ]
+  const drop = () =>
+    Object.assign(new Event('drop', { cancelable: true }), {
+      dataTransfer: { files }
+    })
+  const event = drop()
+  window.dispatchEvent(event)
+  assert.equal(event.defaultPrevented, true)
+  assert.equal(flow.queue.value.length, 2)
+  assert.deepEqual(
+    Array.from(flow.queue.value, (item) => item.file.name),
+    files.map((file) => file.name)
+  )
+  unmount()
+  const after = drop()
+  window.dispatchEvent(after)
+  assert.equal(after.defaultPrevented, false)
+  assert.equal(flow.queue.value.length, 2)
+})
+test('page-wide dragover accepts files and preserves ordinary text dragging', async () => {
+  const { flow, window, unmount } = await harness()
+  const drag = (types) =>
+    Object.assign(new Event('dragover', { cancelable: true }), {
+      dataTransfer: { types, dropEffect: 'none' }
+    })
+  const file = drag(['Files'])
+  window.dispatchEvent(file)
+  assert.equal(file.defaultPrevented, true)
+  assert.equal(file.dataTransfer.dropEffect, 'copy')
+  const text = drag(['text/plain'])
+  window.dispatchEvent(text)
+  assert.equal(text.defaultPrevented, false)
+  flow.repair()
+  const unpaired = drag(['Files'])
+  window.dispatchEvent(unpaired)
+  assert.equal(unpaired.dataTransfer.dropEffect, 'none')
   unmount()
 })

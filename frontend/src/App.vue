@@ -2,7 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, RouterView } from 'vue-router'
-import { LogInIcon, ShieldCheckIcon } from 'lucide-vue-next'
+import { LogInIcon, ShieldCheckIcon, SendIcon } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import ThemeToggle from './components/common/ThemeToggle.vue'
 import LanguageSwitcher from './components/common/LanguageSwitcher.vue'
@@ -13,6 +13,7 @@ import { useConfigStore } from '@/stores/configStore'
 import { useAdminStore } from '@/stores/adminStore'
 
 const {
+  route,
   isDarkMode,
   isLoading,
   routeTransitionMode,
@@ -38,32 +39,52 @@ onMounted(() => {
 
 <template>
   <div :class="['app-container', isDarkMode ? 'dark' : 'light']">
-    <div
-      v-if="showGlobalControls"
-      class="fixed top-4 right-4 z-50 flex items-center gap-2 sm:top-6 sm:right-6 sm:gap-3"
+    <header
+      v-if="!route.meta.requiresAuth"
+      class="app-header relative z-[60] flex flex-wrap items-center justify-between gap-3 px-4 py-4 font-sans sm:px-6 sm:py-6"
     >
-      <RouterLink
-        v-if="showAdminAddress"
-        :to="ROUTES.ADMIN"
-        class="rounded-full border p-2.5 shadow-sm backdrop-blur-xl transition-all duration-300 hover:scale-105 active:scale-95 sm:p-3"
-        :class="
-          adminStore.isAuthenticated
-            ? isDarkMode
-              ? 'border-emerald-400/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-            : isDarkMode
-              ? 'border-white/10 bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700'
-              : 'border-slate-200/50 bg-white/80 text-slate-500 hover:text-slate-700'
-        "
-        :aria-label="adminEntryLabel"
-        :title="adminEntryLabel"
-      >
-        <ShieldCheckIcon v-if="adminStore.isAuthenticated" class="h-5 w-5" />
-        <LogInIcon v-else class="h-5 w-5" />
+      <RouterLink to="/" class="flex items-center gap-3" aria-label="FileRelay 文件接力首页">
+        <span
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border sm:h-12 sm:w-12"
+          :class="
+            isDarkMode
+              ? 'border-white/10 bg-white/10 text-zinc-100'
+              : 'border-white/80 bg-zinc-100 text-zinc-900 shadow-sm'
+          "
+        >
+          <SendIcon class="h-6 w-6" :stroke-width="1.5" />
+        </span>
+        <span>
+          <span class="block text-base font-semibold tracking-tight sm:text-lg"
+            >FileRelay 文件接力</span
+          >
+          <span class="theme-text-muted mt-0.5 block text-xs">在你的设备之间，轻松传递文件</span>
+        </span>
       </RouterLink>
-      <LanguageSwitcher />
-      <ThemeToggle v-model="isDarkMode" />
-    </div>
+      <div v-if="showGlobalControls" class="ml-auto flex items-center gap-2 sm:gap-3">
+        <RouterLink
+          v-if="showAdminAddress"
+          :to="ROUTES.ADMIN"
+          class="rounded-full border p-2.5 shadow-sm backdrop-blur-xl transition-all duration-300 hover:scale-105 active:scale-95 sm:p-3"
+          :class="
+            adminStore.isAuthenticated
+              ? isDarkMode
+                ? 'border-emerald-400/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+              : isDarkMode
+                ? 'border-white/10 bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700'
+                : 'border-slate-200/50 bg-white/80 text-slate-500 hover:text-slate-700'
+          "
+          :aria-label="adminEntryLabel"
+          :title="adminEntryLabel"
+        >
+          <ShieldCheckIcon v-if="adminStore.isAuthenticated" class="h-5 w-5" />
+          <LogInIcon v-else class="h-5 w-5" />
+        </RouterLink>
+        <LanguageSwitcher />
+        <ThemeToggle v-model="isDarkMode" />
+      </div>
+    </header>
     <div v-if="isLoading" class="loading-overlay">
       <div class="loading-spinner"></div>
     </div>
@@ -78,6 +99,14 @@ onMounted(() => {
 </template>
 
 <style>
+.app-header {
+  min-height: 8rem;
+}
+@media (min-width: 640px) {
+  .app-header {
+    min-height: 6rem;
+  }
+}
 .app-container {
   min-height: 100vh;
   width: 100%;

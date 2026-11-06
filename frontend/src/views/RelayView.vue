@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { UploadCloud, Download, Trash2, RefreshCw, Link2, ArrowRight } from 'lucide-vue-next'
+import { Download, Trash2, RefreshCw, ArrowRight } from 'lucide-vue-next'
+import FileUploadArea from '@/components/common/FileUploadArea.vue'
 import { useRelay } from '@/composables'
 const {
   mode,
@@ -22,8 +22,6 @@ const {
   cancel,
   refresh
 } = useRelay()
-const picker = ref<HTMLInputElement | null>(null)
-const dragging = ref(false)
 const size = (n: number) =>
   n < 1000
     ? `${n} B`
@@ -33,27 +31,9 @@ const size = (n: number) =>
         ? `${(n / 1e6).toFixed(1)} MB`
         : `${(n / 1e9).toFixed(2)} GB`
 const time = (n: number) => new Date(n * 1000).toLocaleString()
-const select = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  if (input.files) addFiles(input.files)
-  input.value = ''
-}
-const drop = (event: DragEvent) => {
-  dragging.value = false
-  if (event.dataTransfer?.files) addFiles(event.dataTransfer.files)
-}
 </script>
 <template>
-  <main class="relay mx-auto max-w-4xl px-5 pb-16 pt-24 sm:px-8">
-    <header class="mb-8 flex items-center gap-3">
-      <div class="rounded-2xl bg-indigo-500/10 p-3 text-indigo-500"><Link2 :size="28" /></div>
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">
-          FileRelay <span class="text-base font-normal opacity-60">文件接力</span>
-        </h1>
-        <p class="mt-1 text-sm opacity-60">在你的设备之间，轻松传递文件</p>
-      </div>
-    </header>
+  <main class="relay mx-auto max-w-4xl px-4 pb-12 pt-4 font-sans sm:px-8">
     <p
       v-if="error"
       role="alert"
@@ -80,7 +60,7 @@ const drop = (event: DragEvent) => {
           maxlength="4"
           autocomplete="off"
           required
-          class="my-3 w-full rounded-xl border border-indigo-400/30 bg-transparent px-4 py-4 text-center text-3xl tracking-[.5em] outline-none focus:ring-2 focus:ring-indigo-400"
+          class="my-3 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-4 text-center text-3xl tracking-[.5em] outline-none focus:ring-2 focus:ring-zinc-400"
           placeholder="007"
         />
         <p class="mb-6 text-xs opacity-55">保留前导零，例如 007 与 7 是不同口令。</p>
@@ -92,7 +72,11 @@ const drop = (event: DragEvent) => {
           {{ busy ? '正在配对…' : '开始接力' }}<ArrowRight :size="18" />
         </button>
       </form>
-      <button v-if="session?.paired" class="mt-5 text-sm text-indigo-500" @click="resume">
+      <button
+        v-if="session?.paired"
+        class="mt-5 text-sm text-zinc-700 dark:text-zinc-300"
+        @click="resume"
+      >
         返回当前配对
       </button>
     </section>
@@ -107,7 +91,7 @@ const drop = (event: DragEvent) => {
       <section class="panel mb-5 flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
           <span class="text-sm opacity-60">当前口令</span
-          ><strong class="ml-3 font-mono text-2xl tracking-widest">{{ session?.passcode }}</strong>
+          ><strong class="ml-3 text-2xl tracking-widest">{{ session?.passcode }}</strong>
           <p class="mt-1 text-xs opacity-55">浏览器已记住配对</p>
         </div>
         <button class="secondary text-sm" @click="repair">重新输入口令</button>
@@ -126,60 +110,62 @@ const drop = (event: DragEvent) => {
           ><button class="secondary" @click="decide(request.id, false)">拒绝</button>
         </div>
       </section>
-      <section
-        class="panel mb-5 border-dashed p-8 text-center transition-colors"
-        :class="dragging ? 'bg-indigo-500/10' : ''"
-        @dragover.prevent="dragging = true"
-        @dragleave="dragging = false"
-        @drop.prevent="drop"
-      >
-        <UploadCloud class="mx-auto mb-3 text-indigo-500" :size="34" />
-        <h2 class="text-lg font-semibold">发送文件</h2>
-        <p class="mb-5 mt-2 text-sm opacity-60">
-          选择、拖入或粘贴文件 · 每个文件独立上传 · 单文件最多 1 GB
-        </p>
-        <input
-          ref="picker"
-          type="file"
-          multiple
-          class="sr-only"
-          aria-label="选择要上传的文件"
-          @change="select"
-        />
-        <button class="primary" @click="picker?.click()">选择照片或文件</button>
-        <p class="mt-5 text-xs opacity-50">
-          发布后最多保留 24 小时，首次完整发送后保留 10 分钟供重试。
-        </p>
-      </section>
-      <section v-if="queue.length" class="panel mb-5 p-5" aria-live="polite">
-        <h2 class="mb-3 font-semibold">上传队列</h2>
-        <div v-for="item in queue" :key="item.key" class="border-t border-slate-400/15 py-4">
-          <div class="flex items-center gap-3">
-            <span class="min-w-0 flex-1 break-all text-sm">{{ item.file.name }}</span
-            ><span class="text-xs opacity-60">{{ item.state }} {{ item.progress }}%</span>
-            <button
-              v-if="['失败', '已取消'].includes(item.state)"
-              class="text-sm text-indigo-500"
-              @click="retry(item)"
-            >
-              重试
-            </button>
-            <button
-              v-else-if="item.state !== '已完成'"
-              class="text-sm opacity-60"
-              @click="cancel(item)"
-            >
-              取消
-            </button>
-          </div>
-          <progress :value="item.progress" max="100" class="mt-3 h-1.5 w-full accent-indigo-500" />
-          <p v-if="item.error" class="mt-1 text-xs text-red-500">{{ item.error }}</p>
+      <section class="panel mb-5 overflow-hidden" aria-label="上传区域">
+        <div class="px-5 py-5 sm:px-8">
+          <h2 class="mb-3 text-lg font-semibold">文件发送</h2>
+          <FileUploadArea
+            class="payload-panel"
+            placeholder="点击或拖放文件到此处上传"
+            description="支持各种常见格式，单文件最大 1 GB"
+            @file-selected="addFiles([$event])"
+            @files-selected="addFiles"
+          />
+          <p class="mt-3 text-center text-xs leading-5 text-slate-500 dark:text-zinc-400">
+            点击选择、拖放到页面任意位置或粘贴文件，即可自动上传。
+          </p>
         </div>
+        <p class="section-footer px-5 py-2.5 text-center text-xs leading-5 sm:px-8">
+          文件最多保留 24 小时，首次完整下载后保留 10 分钟供重试。
+        </p>
+        <section
+          v-if="queue.length"
+          class="border-t border-zinc-200/60 p-5 dark:border-zinc-800"
+          aria-live="polite"
+        >
+          <h2 class="mb-3 font-semibold">上传队列</h2>
+          <div v-for="item in queue" :key="item.key" class="border-t border-slate-400/15 py-4">
+            <div class="flex items-center gap-3">
+              <span class="min-w-0 flex-1 break-all text-sm">{{ item.file.name }}</span
+              ><span class="text-xs opacity-60">{{ item.state }} {{ item.progress }}%</span>
+              <button
+                v-if="['失败', '已取消'].includes(item.state)"
+                class="text-sm text-zinc-700 dark:text-zinc-300"
+                @click="retry(item)"
+              >
+                重试
+              </button>
+              <button
+                v-else-if="item.state !== '已完成'"
+                class="text-sm opacity-60"
+                @click="cancel(item)"
+              >
+                取消
+              </button>
+            </div>
+            <progress
+              :value="item.progress"
+              max="100"
+              class="mt-3 h-1.5 w-full accent-zinc-800 dark:accent-zinc-200"
+            />
+            <p v-if="item.error" class="mt-1 text-xs text-red-500">{{ item.error }}</p>
+          </div>
+        </section>
       </section>
-      <section class="panel p-5">
+      <section class="panel p-5 sm:p-8" aria-label="下载区域">
         <div class="mb-3 flex items-center justify-between gap-3">
           <h2 class="font-semibold">
-            共享文件 <span class="ml-1 text-sm font-normal opacity-50">{{ files.length }}</span>
+            <span class="inline-flex items-center gap-2"><Download :size="18" />文件下载</span>
+            <span class="ml-1 text-sm font-normal opacity-50">{{ files.length }}</span>
           </h2>
           <button class="flex items-center gap-1 text-xs opacity-60" @click="refresh">
             <RefreshCw :size="13" />{{ refreshState }}
@@ -226,26 +212,27 @@ const drop = (event: DragEvent) => {
 </template>
 <style scoped>
 .panel {
-  border: 1px solid rgb(148 163 184 / 0.2);
-  border-radius: 1.25rem;
-  background: rgb(var(--color-surface) / 0.5);
-  box-shadow: 0 4px 24px rgb(0 0 0 / 0.025);
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 2rem;
+  background: rgb(255 255 255 / 0.8);
+  box-shadow: 0 24px 70px -28px rgb(24 24 27 / 0.18);
+  backdrop-filter: blur(64px);
 }
 .primary {
   border-radius: 0.75rem;
-  background: #6366f1;
+  background: #27272a;
   color: white;
   padding: 0.7rem 1.2rem;
   font-weight: 500;
 }
 .primary:hover {
-  background: #4f46e5;
+  background: #18181b;
 }
 .primary:disabled {
   opacity: 0.5;
 }
 .secondary {
-  border: 1px solid rgb(148 163 184 / 0.3);
+  border: 1px solid rgb(var(--color-border));
   border-radius: 0.75rem;
   padding: 0.6rem 1rem;
 }
@@ -255,7 +242,71 @@ a {
 }
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid #818cf8;
+  outline: 2px solid rgb(var(--color-focus-ring));
   outline-offset: 3px;
+}
+
+:global(.dark .relay .panel) {
+  border-color: rgb(255 255 255 / 0.1);
+  background: rgb(24 24 27 / 0.75);
+  box-shadow: 0 24px 80px -32px rgb(255 255 255 / 0.18);
+}
+:global(.dark .relay .primary) {
+  background: #e4e4e7;
+  color: #09090b;
+}
+:global(.dark .relay .primary:hover) {
+  background: white;
+}
+.secondary:hover {
+  background: rgb(var(--color-accent) / 0.06);
+}
+.section-footer {
+  border-top: 1px solid rgb(241 245 249);
+  background: rgb(248 250 252 / 0.5);
+  color: rgb(100 116 139);
+}
+:global(.dark .relay .section-footer) {
+  border-color: rgb(39 39 42 / 0.6);
+  background: rgb(24 24 27 / 0.4);
+  color: rgb(161 161 170);
+}
+:deep(.payload-panel) {
+  height: 7rem;
+  min-height: 7rem;
+  padding: 0.75rem;
+}
+:deep(.payload-panel > svg) {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+:deep(.payload-panel > p) {
+  margin-top: 0.25rem;
+}
+@media (min-width: 640px) {
+  .panel {
+    border-radius: 2.5rem;
+  }
+  :deep(.payload-panel) {
+    height: 8rem;
+    min-height: 8rem;
+  }
+}
+progress {
+  appearance: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 9999px;
+  background: rgb(var(--color-border));
+  color: rgb(var(--color-accent));
+}
+progress::-webkit-progress-bar {
+  background: rgb(var(--color-border));
+}
+progress::-webkit-progress-value {
+  background: rgb(var(--color-accent));
+}
+progress::-moz-progress-bar {
+  background: rgb(var(--color-accent));
 }
 </style>

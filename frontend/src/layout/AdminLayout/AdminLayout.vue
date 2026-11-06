@@ -1,10 +1,10 @@
 <template>
   <div
-    class="theme-page flex h-screen overflow-hidden flex-col transition-colors duration-300 lg:flex-row"
+    class="theme-page flex h-dvh overflow-hidden flex-col transition-colors duration-300 lg:flex-row"
   >
     <!-- Sidebar -->
     <aside
-      class="theme-surface fixed inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 transform flex-col border-r shadow-[var(--shadow-sidebar)] backdrop-blur-2xl lg:relative lg:h-screen lg:translate-x-0"
+      class="theme-surface fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 transform flex-col border-r shadow-[var(--shadow-sidebar)] backdrop-blur-2xl lg:relative lg:h-full lg:translate-x-0"
       :class="[
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         'transition-transform duration-300 ease-in-out lg:transition-none'
@@ -14,19 +14,25 @@
       <div
         class="theme-divider flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4"
       >
-        <div class="flex min-w-0 items-center">
-          <div
-            class="theme-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-colors"
+        <RouterLink
+          to="/"
+          class="flex min-w-0 items-center gap-2 font-sans"
+          aria-label="FileRelay 文件接力首页"
+        >
+          <span
+            class="theme-surface-strong theme-text-strong flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border shadow-sm"
           >
-            <BoxIcon class="h-5 w-5 shrink-0" />
-          </div>
-          <h1
-            @click="router.push('/')"
-            class="theme-text-strong ml-2 min-w-0 truncate text-xl font-semibold cursor-pointer"
-          >
-            {{ t('common.appName') }}
-          </h1>
-        </div>
+            <SendIcon class="h-5 w-5" :stroke-width="1.5" />
+          </span>
+          <span class="min-w-0">
+            <span class="theme-text-strong block text-sm font-semibold tracking-tight"
+              >FileRelay 文件接力</span
+            >
+            <span class="theme-text-muted mt-0.5 block text-[10px] leading-4"
+              >在你的设备之间，轻松传递文件</span
+            >
+          </span>
+        </RouterLink>
         <button @click="toggleSidebar" class="shrink-0 lg:hidden">
           <XIcon class="theme-text-muted w-6 h-6" />
         </button>
@@ -63,9 +69,7 @@
     <!-- Main Content -->
     <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       <!-- Header -->
-      <header
-        class="theme-surface border-b transition-colors duration-300 h-16 backdrop-blur-xl"
-      >
+      <header class="theme-surface border-b transition-colors duration-300 h-16 backdrop-blur-xl">
         <div class="flex h-16 items-center gap-3 px-4">
           <button
             type="button"
@@ -79,7 +83,10 @@
             {{ currentPageTitle }}
           </h2>
           <div class="flex min-w-0 shrink-0 items-center gap-3">
-            <p v-if="headerActions?.subtitle" class="theme-text-muted hidden max-w-56 truncate text-sm xl:block">
+            <p
+              v-if="headerActions?.subtitle"
+              class="theme-text-muted hidden max-w-56 truncate text-sm xl:block"
+            >
               {{ headerActions.subtitle }}
             </p>
             <p
@@ -121,7 +128,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import {
-  BoxIcon,
+  SendIcon,
   MenuIcon,
   XIcon,
   FolderIcon,
@@ -176,7 +183,9 @@ const menuItems: MenuItem[] = [
     redirect: ROUTES.SETTINGS
   }
 ]
-const currentPageTitle = computed(() => menuItems.find((item) => item.id === route.name)?.name ?? '')
+const currentPageTitle = computed(
+  () => menuItems.find((item) => item.id === route.name)?.name ?? ''
+)
 
 const isSidebarOpen = ref(true)
 const toggleSidebar = () => {
@@ -299,5 +308,4 @@ input:checked + .slider {
     }
   }
 }
-
 </style>

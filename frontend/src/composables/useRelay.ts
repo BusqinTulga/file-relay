@@ -296,10 +296,23 @@ export function useRelay() {
   const paste = (event: ClipboardEvent) => {
     if (event.clipboardData?.files.length) addFiles(event.clipboardData.files)
   }
+  const dragover = (event: DragEvent) => {
+    if (event.dataTransfer?.types.includes('Files')) {
+      event.preventDefault()
+      event.dataTransfer.dropEffect = mode.value === 'relay' ? 'copy' : 'none'
+    }
+  }
+  const drop = (event: DragEvent) => {
+    if (!event.dataTransfer?.files.length) return
+    event.preventDefault()
+    addFiles(event.dataTransfer.files)
+  }
   onMounted(() => {
     document.addEventListener('visibilitychange', wake)
     window.addEventListener('focus', wake)
     window.addEventListener('paste', paste)
+    window.addEventListener('dragover', dragover)
+    window.addEventListener('drop', drop)
     void initialize()
   })
   onUnmounted(() => {
@@ -309,6 +322,8 @@ export function useRelay() {
     document.removeEventListener('visibilitychange', wake)
     window.removeEventListener('focus', wake)
     window.removeEventListener('paste', paste)
+    window.removeEventListener('dragover', dragover)
+    window.removeEventListener('drop', drop)
   })
   return {
     mode,
