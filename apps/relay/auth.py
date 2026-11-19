@@ -96,13 +96,25 @@ async def session_view(session, device):
 @router.get("/session")
 async def get_session(request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
-    session = await optional_session(request)
-    if session:
-        device = await RelayDevice.get(id=session.device_id)
-        return await session_view(session, device)
-    token = request.cookies.get(CSRF_COOKIE) or secrets.token_urlsafe(32)
-    cookie(response, request, CSRF_COOKIE, token)
-    return {"paired": False, "csrf": token}
+    async with state_lock:
+        session = await optional_session(request)
+        if session:
+            device = await RelayDevice.get(id=session.device_id)
+            result = await session_view(session, device)
+        else:
+            token = request.cookies.get(CSRF_COOKIE)
+            if not token:
+                token = secrets.token_urlsafe(32)
+                cookie(response, request, CSRF_COOKIE, token)
+            result = {"paired": False, "csrf": token}
+        pending_token = request.cookies.get(PENDING_COOKIE)
+        if pending_token:
+            pending = await PairingRequest.get_or_none(
+                token_hash=digest(pending_token), original_session=session.token_hash if session else None,
+                status__in=["pending", "approved"], expires__gt=config.now())
+            if pending:
+                result["pending"] = {"request_id": pending.id, "status": pending.status, "expires": pending.expires}
+        return result
 
 
 async def join(group_id, original, response, request):
@@ -138,15 +150,16 @@ async def pair(data: PairInput, request: Request, response: Response):
     async with state_lock, in_transaction():
         original = await optional_session(request)
         group, _ = await RelayGroup.get_or_create(passcode=data.passcode, defaults={"created": config.now()})
-        if original:
-            device = await RelayDevice.get(id=original.device_id)
-            if device.group_id == group.id:
-                return await session_view(original, device)
         # Supersede the previous pending request for this browser, without touching its files.
         old = request.cookies.get(PENDING_COOKIE)
         if old:
             await PairingRequest.filter(token_hash=digest(old), status__in=["pending", "approved"]).update(
                 status="cancelled")
+        if original:
+            device = await RelayDevice.get(id=original.device_id)
+            if device.group_id == group.id:
+                response.delete_cookie(PENDING_COOKIE, path="/")
+                return await session_view(original, device)
         if await RelayDevice.filter(group_id=group.id).count() < 2:
             return await join(group.id, original, response, request)
         token = secrets.token_urlsafe(48)

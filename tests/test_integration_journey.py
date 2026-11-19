@@ -14,3 +14,11 @@ async def test_retired_protocols_are_closed(initialized_client,path):
 
 async def test_admin_still_requires_own_token(initialized_client):
     assert (await initialized_client.get('/admin/file/list')).status_code==401
+
+
+async def test_fresh_install_exposes_setup_in_json_api_response(client):
+    for path in ('/api/v1/config', '/api/relay/session', '/admin/verify'):
+        response = await client.get(path)
+        assert response.status_code == 428
+        assert response.json()['detail']['setup'] == '/setup'
+    assert '初始化 FileRelay' in (await client.get('/')).text

@@ -8,6 +8,7 @@ const {
   passcode,
   files,
   requests,
+  pendingRequest,
   queue,
   error,
   refreshState,
@@ -20,6 +21,7 @@ const {
   remove,
   addFiles,
   retry,
+  canRetry,
   cancel,
   refresh
 } = useRelay()
@@ -75,6 +77,7 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
       </form>
       <button
         v-if="session?.paired"
+        :disabled="busy"
         class="mt-5 text-sm text-zinc-700 dark:text-zinc-300"
         @click="resume"
       >
@@ -85,6 +88,9 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
       <h2 class="text-xl font-semibold">等待已有设备确认</h2>
       <p class="my-4 text-sm leading-6 opacity-65">
         请在已配对的任意设备上同意本次加入。申请 10 分钟后过期，批准前无法访问目标文件。
+      </p>
+      <p v-if="pendingRequest" class="mb-4 text-sm">
+        申请 {{ pendingRequest.request_id.slice(0, 8) }} · {{ time(pendingRequest.expires) }} 前有效
       </p>
       <button class="secondary" @click="repair">重新输入口令</button>
     </section>
@@ -140,14 +146,14 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
               <span class="min-w-0 flex-1 break-all text-sm">{{ item.file.name }}</span
               ><span class="text-xs opacity-60">{{ item.state }} {{ item.progress }}%</span>
               <button
-                v-if="['失败', '已取消'].includes(item.state)"
+                v-if="canRetry(item)"
                 class="text-sm text-zinc-700 dark:text-zinc-300"
                 @click="retry(item)"
               >
                 重试
               </button>
               <button
-                v-else-if="item.state !== '已完成'"
+                v-else-if="['等待上传', '校验文件', '上传中', '发布中'].includes(item.state)"
                 class="text-sm opacity-60"
                 @click="cancel(item)"
               >

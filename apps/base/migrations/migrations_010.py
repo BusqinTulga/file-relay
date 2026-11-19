@@ -31,7 +31,7 @@ def backup_database(source):
                 raise RuntimeError('迁移前备份无效，请检查 backups/before-schema-010.db')
         return
     temporary = destination.with_suffix('.tmp')
-    with sqlite3.connect(f'file:{source}?mode=ro', uri=True) as src, sqlite3.connect(temporary) as dst:
+    with sqlite3.connect(f'{source.as_uri()}?mode=ro', uri=True) as src, sqlite3.connect(temporary) as dst:
         src.backup(dst)
         if dst.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
             raise RuntimeError('迁移前数据库备份校验失败')

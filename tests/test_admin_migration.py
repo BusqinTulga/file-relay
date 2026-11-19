@@ -22,7 +22,7 @@ async def old_database(tmp_path, monkeypatch):
     migration = importlib.import_module('apps.base.migrations.migrations_010')
     monkeypatch.setattr(migration, 'data_root', tmp_path)
     config = {**MEMORY_DB_CONFIG, 'connections': {'default': {'engine': 'tortoise.backends.sqlite',
-        'credentials': {'file_path': str(tmp_path/'upgrade.db'), 'journal_mode': 'WAL'}}}}
+        'credentials': {'file_path': str(tmp_path/'upgrade #1?.db'), 'journal_mode': 'WAL'}}}}
     if Tortoise._inited:
         await close_db()
     await Tortoise.init(config=config)

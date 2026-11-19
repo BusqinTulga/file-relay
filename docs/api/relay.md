@@ -2,7 +2,7 @@
 
 基础路径 `/api/relay`，同源 Cookie 认证，JSON 使用 snake_case。公开协议已关闭。所有响应禁止缓存；设备 401 与管理员 401 相互独立。
 
-`GET /session` 用于启动，返回 `paired`、`csrf`，已加入设备另返回 `passcode`、`device_id`、`session_id`。未配对时下发 HttpOnly CSRF 引导 Cookie。所有写操作必须带与当前会话一致的 `X-Relay-CSRF` 和同源 `Origin`；浏览器队列固定携带开始时的 `X-Relay-Session`，凭证更换后旧队列被拒绝。原生下载只使用 Cookie。Cookie 使用 Path=/、HttpOnly、SameSite=Strict，生产额外 Secure。
+`GET /session` 用于启动，返回 `paired`、`csrf`，已加入设备另返回 `passcode`、`device_id`、`session_id`。当前浏览器有未过期的待处理或已批准申请时，另返回 `pending`，含 `request_id`、`status` 和 `expires`，供页面刷新后恢复等待。未配对时下发 HttpOnly CSRF 引导 Cookie。所有写操作必须带与当前会话一致的 `X-Relay-CSRF` 和同源 `Origin`；浏览器队列固定携带开始时的 `X-Relay-Session`，凭证更换后旧队列被拒绝。原生下载只使用 Cookie。Cookie 使用 Path=/、HttpOnly、SameSite=Strict，生产额外 Secure。
 
 | 方法与路径 | 输入 / 结果 |
 | --- | --- |

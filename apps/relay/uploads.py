@@ -211,29 +211,40 @@ async def put_content(upload_id: str, request: Request, auth=Depends(device_sess
     return await write_chunk(upload_id, 0, request, auth)
 
 
+class UploadIntegrityError(ValueError):
+    def __init__(self, message: str, index: int | None = None):
+        super().__init__(message)
+        self.index = index
+
+
 def merge_and_verify(upload, chunks):
     directory = temp_dir(upload.id)
+    directory.mkdir(parents=True, exist_ok=True)
     merged = directory / "merged.part"
     total, hasher = 0, hashlib.sha256()
     with merged.open("wb") as output:
         for chunk in chunks:
             part_hash, part_size = hashlib.sha256(), 0
-            with (directory / str(chunk.index)).open("rb") as source:
+            expected = min(upload.chunk_size, upload.size - chunk.index * upload.chunk_size)
+            try:
+                source = (directory / str(chunk.index)).open("rb")
+            except FileNotFoundError as exc:
+                raise UploadIntegrityError("分片实体丢失，请重传", chunk.index) from exc
+            with source:
                 while block := source.read(1024 * 1024):
                     total += len(block)
                     part_size += len(block)
-                    if total > upload.size:
-                        raise ValueError("合并长度超出声明")
+                    if part_size > expected:
+                        raise UploadIntegrityError("分片实体损坏，请重传", chunk.index)
                     hasher.update(block)
                     part_hash.update(block)
                     output.write(block)
-            expected = min(upload.chunk_size, upload.size - chunk.index * upload.chunk_size)
             if part_size != expected or part_hash.hexdigest() != chunk.sha256:
-                raise ValueError("分片实体已损坏，请重传")
+                raise UploadIntegrityError("分片实体损坏，请重传", chunk.index)
         output.flush()
         os.fsync(output.fileno())
     if total != upload.size or hasher.hexdigest() != upload.sha256:
-        raise ValueError("文件总长度或完整 SHA256 不匹配")
+        raise UploadIntegrityError("文件总长度或完整 SHA256 不匹配，请重传")
     final_path(upload.id).parent.mkdir(parents=True, exist_ok=True)
     os.replace(merged, final_path(upload.id))
 
@@ -276,9 +287,16 @@ async def complete(upload_id: str, auth=Depends(device_session)):
                         published=stamp, relay_expires=stamp + config.FILE_TTL)
                     await RelayUpload.filter(id=upload.id).update(state="completed", file_id=file.id, error="")
         except Exception as exc:
+            if isinstance(exc, UploadIntegrityError):
+                recorded = RelayChunk.filter(upload_id=upload.id)
+                if exc.index is not None:
+                    recorded = recorded.filter(index=exc.index)
+                await recorded.delete()
             await RelayUpload.filter(id=upload.id, state="merging").update(state="uploading", error=str(exc)[:500])
             if isinstance(exc, HTTPException):
                 raise
+            if isinstance(exc, UploadIntegrityError):
+                raise HTTPException(422, str(exc)) from exc
             raise HTTPException(422, "文件校验或发布失败，可重试上传") from exc
         upload = await RelayUpload.get(id=upload.id)
         try:

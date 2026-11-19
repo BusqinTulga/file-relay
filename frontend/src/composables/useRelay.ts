@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { RelayService, RelayError } from '@/services'
-import type { RelayFile, RelaySession, RelayPolicy } from '@/services'
+import type { RelayFile, RelaySession, RelayPending, RelayPolicy } from '@/services'
 import { hashRelayFile } from '@/utils/relay-sha256'
 
 interface QueueItem {
@@ -9,8 +9,10 @@ interface QueueItem {
   progress: number
   state: string
   error: string
+  generation: number
   uploadID?: string
   controller?: AbortController
+  cancelling?: boolean
 }
 export function useRelay() {
   const mode = ref<'loading' | 'pair' | 'waiting' | 'relay'>('loading')
@@ -18,6 +20,7 @@ export function useRelay() {
   const passcode = ref('')
   const files = ref<RelayFile[]>([])
   const requests = ref<{ id: string; expires: number }[]>([])
+  const pendingRequest = ref<RelayPending | null>(null)
   const queue = ref<QueueItem[]>([])
   const error = ref('')
   const refreshState = ref('正在连接…')
@@ -45,59 +48,71 @@ export function useRelay() {
     stopQueue()
     files.value = []
     requests.value = []
+    pendingRequest.value = null
   }
   const handleError = (e: unknown) => {
     error.value = e instanceof Error ? e.message : '请求失败，请重试'
-    if (e instanceof RelayError && (e.status === 401 || e.status === 409)) {
-      resetContext()
-      mode.value = 'pair'
-      void RelayService.session().then((s) => {
-        session.value = s
-      })
-    }
   }
-  async function sync() {
-    if (stopped || polling || document.hidden || mode.value === 'pair') return
+  async function sync(restorePending = true) {
+    if (stopped || polling || busy.value || document.hidden || mode.value === 'pair') return
     polling = true
-    const epoch = generation
+    let epoch = generation
     try {
-      if (mode.value === 'waiting') {
-        const pending = await RelayService.pending()
-        if (epoch !== generation) return
-        if (pending.paired) {
-          const s = await RelayService.session()
-          if (epoch !== generation) return
+      const current = await RelayService.session()
+      if (epoch !== generation) return
+      if (mode.value === 'waiting' || (mode.value === 'loading' && restorePending && current.pending)) {
+        if (current.pending) pendingRequest.value = current.pending
+        mode.value = 'waiting'
+        if (!current.pending && current.session_id !== session.value?.session_id) {
           resetContext()
-          session.value = s
+          session.value = current
+          mode.value = current.paired ? 'relay' : 'pair'
+          failures = 0
+          return
+        }
+        session.value = current
+        const pending = await RelayService.pending(current)
+        if (epoch !== generation) return
+        if ('csrf' in pending) {
+          resetContext()
+          session.value = pending
           mode.value = 'relay'
+          error.value = ''
         } else if (pending.status !== 'pending' && pending.status !== 'approved') {
+          pendingRequest.value = null
           error.value =
             pending.status === 'rejected'
               ? '加入申请已被拒绝，可重新输入口令'
               : '加入申请已过期，请重新申请'
           mode.value = 'pair'
         }
+        failures = 0
         return
       }
-      policy.value = await RelayService.policy()
-      const current = await RelayService.session()
-      if (epoch !== generation) return
       if (!current.paired) {
         resetContext()
         session.value = current
         mode.value = 'pair'
+        failures = 0
         return
       }
       if (session.value?.session_id !== current.session_id) {
         resetContext()
-        session.value = current
-      } else session.value = current
-      const active = generation
-      const [listing, pending] = await Promise.all([RelayService.list(), RelayService.approvals()])
-      if (active !== generation || listing.session_id !== session.value?.session_id) return
+        epoch = generation
+      }
+      session.value = current
+      mode.value = 'relay'
+      const [listing, pending, limits] = await Promise.all([
+        RelayService.list(current),
+        RelayService.approvals(current),
+        RelayService.policy().catch(() => null)
+      ])
+      if (epoch !== generation || listing.session_id !== current.session_id) return
+      policy.value = limits
       files.value = listing.files
       requests.value = pending
       refreshState.value = '已同步 · 每 2 秒刷新'
+      if (failures) error.value = ''
       failures = 0
     } catch (e) {
       if (epoch !== generation) return
@@ -127,17 +142,8 @@ export function useRelay() {
       schedule()
     }
   }
-  async function initialize() {
-    try {
-      policy.value = await RelayService.policy()
-      const current = await RelayService.session()
-      session.value = current
-      mode.value = current.paired ? 'relay' : 'pair'
-      await sync()
-    } catch (e) {
-      mode.value = 'pair'
-      handleError(e)
-    }
+  async function initialize(restorePending = true) {
+    await sync(restorePending)
     schedule()
   }
   async function pair() {
@@ -149,20 +155,27 @@ export function useRelay() {
     busy.value = true
     error.value = ''
     resetContext()
+    const epoch = generation
     try {
       // Bootstrap again in case another tab replaced the cookie.
-      session.value = await RelayService.session()
-      const result = await RelayService.pair(passcode.value)
-      if (result.paired) {
-        session.value = await RelayService.session()
+      const current = await RelayService.session()
+      if (epoch !== generation) return
+      const result = await RelayService.pair(passcode.value, current)
+      if (epoch !== generation) return
+      if ('csrf' in result) {
+        session.value = result
         mode.value = 'relay'
-        await sync()
-      } else mode.value = 'waiting'
+      } else {
+        session.value = current
+        pendingRequest.value = result
+        mode.value = 'waiting'
+      }
     } catch (e) {
-      handleError(e)
+      if (epoch === generation) handleError(e)
     } finally {
       busy.value = false
     }
+    if (epoch === generation) await sync()
   }
   function repair() {
     resetContext()
@@ -171,23 +184,30 @@ export function useRelay() {
     mode.value = 'pair'
   }
   async function resume() {
+    if (busy.value) return
     mode.value = 'loading'
-    await initialize()
+    await initialize(false)
   }
   async function decide(id: string, approve: boolean) {
+    const auth = session.value
+    if (!auth?.paired) return
+    const epoch = generation
     try {
-      await RelayService.decide(id, approve)
+      await RelayService.decide(id, approve, auth)
       await sync()
     } catch (e) {
-      handleError(e)
+      if (epoch === generation) handleError(e)
     }
   }
   async function remove(id: number) {
+    const auth = session.value
+    if (!auth?.paired) return
+    const epoch = generation
     try {
-      await RelayService.remove(id)
+      await RelayService.remove(id, auth)
       await sync()
     } catch (e) {
-      handleError(e)
+      if (epoch === generation) handleError(e)
     }
   }
   async function runQueue() {
@@ -276,7 +296,8 @@ export function useRelay() {
               /* explicit unknown policy */
             }
           }
-          if (e instanceof RelayError && (e.status === 401 || e.status === 409)) handleError(e)
+          if (epoch === generation && e instanceof RelayError && (e.status === 401 || e.status === 409))
+            await sync()
         } finally {
           item.controller = undefined
         }
@@ -293,24 +314,36 @@ export function useRelay() {
         file,
         progress: 0,
         state: '等待上传',
-        error: ''
+        error: '',
+        generation
       })
     void runQueue()
   }
+  function canRetry(item: QueueItem) {
+    return item.generation === generation && !item.controller && !item.cancelling &&
+      ['失败', '已取消'].includes(item.state)
+  }
   function retry(item: QueueItem) {
-    if (mode.value !== 'relay') return
+    if (mode.value !== 'relay' || !canRetry(item)) return
     item.state = '等待上传'
     item.progress = 0
     item.error = ''
     void runQueue()
   }
-  function cancel(item: QueueItem) {
+  async function cancel(item: QueueItem) {
     item.controller?.abort()
     item.state = '已取消'
-    if (item.uploadID)
-      void RelayService.cancel(item.uploadID).catch(() => {
-        /* persisted TTL cleanup remains */
-      })
+    const auth = session.value
+    if (!item.uploadID || item.generation !== generation || !auth?.paired) return
+    item.cancelling = true
+    try {
+      await RelayService.cancel(item.uploadID, auth)
+      item.uploadID = undefined
+    } catch {
+      // The next upload checks whether the server still has a resumable session.
+    } finally {
+      item.cancelling = false
+    }
   }
   const paste = (event: ClipboardEvent) => {
     if (event.clipboardData?.files.length) addFiles(event.clipboardData.files)
@@ -350,6 +383,7 @@ export function useRelay() {
     passcode,
     files,
     requests,
+    pendingRequest,
     queue,
     error,
     refreshState,
@@ -362,7 +396,8 @@ export function useRelay() {
     remove,
     addFiles,
     retry,
+    canRetry,
     cancel,
-    refresh: sync
+    refresh: () => sync()
   }
 }

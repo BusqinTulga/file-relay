@@ -113,6 +113,37 @@ test('hidden page does not poll files', async () => {
   assert.equal(calls, before)
   unmount()
 })
+
+test('reload restores a pending application and claims approval', async () => {
+  const pending = { request_id: 'example', status: 'pending', expires: 100 }
+  const unpaired = { paired: false, csrf: 'bootstrap', pending }
+  const { flow, service, auth, unmount } = await harness({
+    session: async () => unpaired,
+    pending: async (session) => {
+      assert.equal(session, unpaired)
+      return { status: 'pending' }
+    }
+  })
+  assert.equal(flow.mode.value, 'waiting')
+  assert.equal(flow.pendingRequest.value, pending)
+  service.pending = async () => auth
+  await flow.refresh()
+  assert.equal(flow.mode.value, 'relay')
+  assert.equal(flow.session.value, auth)
+  assert.equal(flow.pendingRequest.value, null)
+  unmount()
+})
+
+test('failed upload policy does not hide files available to download', async () => {
+  const { flow, unmount } = await harness({
+    policy: async () => { throw new Error('offline') },
+    list: async () => ({ session_id: 'a', files: [{ id: 1 }] })
+  })
+  assert.equal(flow.mode.value, 'relay')
+  assert.equal(flow.files.value[0].id, 1)
+  assert.equal(flow.policy.value, null)
+  unmount()
+})
 test('re-pair during hashing stops old queue before creating an upload', async () => {
   let release,
     starts = 0
@@ -151,6 +182,33 @@ test('changed browser cookie clears old list before new list arrives', async () 
   release({ session_id: 'b', files: [{ id: 2 }] })
   await refresh
   assert.equal(flow.files.value[0].id, 2)
+  unmount()
+})
+
+test('retry waits until server-side cancellation settles', async () => {
+  let finishCancel, starts = 0
+  const { flow, unmount } = await harness({
+    start: async () => {
+      starts++
+      return { id: 'upload', state: 'uploading', chunk_size: 1, chunks: [] }
+    },
+    put: (_id, _index, _block, _hash, signal) => new Promise((_, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    }),
+    cancel: () => new Promise((resolve) => { finishCancel = resolve })
+  })
+  flow.addFiles([{ name: 'one.txt', size: 1, slice: () => ({}) }])
+  await flush()
+  const item = flow.queue.value[0]
+  const cancellation = flow.cancel(item)
+  await flush()
+  flow.retry(item)
+  assert.equal(starts, 1)
+  finishCancel()
+  await cancellation
+  flow.retry(item)
+  await flush()
+  assert.equal(starts, 2)
   unmount()
 })
 

@@ -64,6 +64,8 @@ async def test_pair_approval_isolation_and_idempotence(initialized_client):
         assert (await pair(b)).json()['paired']
         pending = (await pair(c)).json()
         assert pending['status'] == 'pending'
+        assert (await c.get('/api/relay/session')).json()['pending']['request_id'] == pending['request_id']
+        assert 'pending' not in (await b.get('/api/relay/session')).json()
         assert (await c.get('/api/relay/files')).status_code == 401
         assert (await pair(d, '7')).json()['paired']
         file, session = await upload(a)
@@ -74,8 +76,10 @@ async def test_pair_approval_isolation_and_idempotence(initialized_client):
         url = '/api/relay/pairing/requests/' + pending['request_id']
         results = await asyncio.gather(*(a.post(url, json={'approve': True}, headers=h) for _ in range(2)))
         assert [r.json()['status'] for r in results] == ['approved', 'approved']
+        assert (await c.get('/api/relay/session')).json()['pending']['status'] == 'approved'
         joined = await c.post('/api/relay/pairing/status', headers=await headers(c))
         assert joined.json()['paired']
+        assert 'pending' not in (await c.get('/api/relay/session')).json()
         assert await RelayDevice.filter(group_id=(await RelayDevice.get(id=joined.json()['device_id'])).group_id).count() == 3
         assert len((await c.get('/api/relay/files')).json()['files']) == 1
         denied = await d.post(url, json={'approve': True}, headers=await headers(d))
@@ -203,6 +207,32 @@ async def test_full_hash_disambiguates_middle_content(initialized_client):
     assert ids[0] != ids[1]
 
 
+@pytest.mark.parametrize('missing', [False, True])
+async def test_retry_reuploads_only_bad_chunk(initialized_client, monkeypatch, missing):
+    client = initialized_client
+    await pair(client)
+    monkeypatch.setattr(config, 'CHUNK_SIZE', 3)
+    h = await headers(client)
+    data = {'name': 'retry.bin', 'size': 6, 'sha256': sha(b'abcdef')}
+    start = (await client.post('/api/relay/uploads', json=data, headers=h)).json()
+    url = f"/api/relay/uploads/{start['id']}"
+    for index, part in enumerate((b'abc', b'def')):
+        assert (await client.put(f'{url}/chunks/{index}', content=part,
+                                 headers={**h, 'X-Chunk-SHA256': sha(part)})).status_code == 200
+    bad = temp_dir(start['id'])/'0'
+    if missing:
+        bad.unlink()
+    else:
+        bad.write_bytes(b'bad')
+    assert (await client.post(url+'/complete', headers=h)).status_code == 422
+    retry = (await client.post('/api/relay/uploads', json=data, headers=h)).json()
+    assert retry['id'] == start['id'] and retry['chunks'] == [1]
+    assert (await client.put(url+'/chunks/0', content=b'abc',
+                             headers={**h, 'X-Chunk-SHA256': sha(b'abc')})).status_code == 200
+    result = await client.post(url+'/complete', headers=h)
+    assert result.json()['file']['sha256'] == data['sha256']
+
+
 async def test_download_countdown_range_head_and_prefetch(initialized_client):
     a = initialized_client
     await pair(a)
@@ -222,6 +252,37 @@ async def test_download_countdown_range_head_and_prefetch(initialized_client):
     with patch.object(config, 'now', return_value=first.relay_expires+1):
         assert (await a.get(url)).status_code == 404
         assert not (await a.get('/api/relay/files')).json()['files']
+
+
+async def test_download_waits_for_server_to_accept_final_body(initialized_client):
+    client = initialized_client
+    await pair(client)
+    file, _ = await upload(client)
+    scope = {
+        'type': 'http', 'method': 'GET', 'scheme': 'http',
+        'path': f"/api/relay/files/{file['id']}/download", 'query_string': b'',
+        'headers': [(b'host', b'test'), (b'cookie', f"relay_device={client.cookies['relay_device']}".encode())],
+    }
+    reached_final_body = asyncio.Event()
+    release = asyncio.Event()
+
+    async def receive():
+        await asyncio.Event().wait()
+
+    async def send(message):
+        if message['type'] == 'http.response.body' and not message.get('more_body'):
+            reached_final_body.set()
+            await release.wait()
+
+    task = asyncio.create_task(main.app(scope, receive, send))
+    try:
+        await asyncio.wait_for(reached_final_body.wait(), timeout=2)
+        await asyncio.sleep(.05)
+        assert (await FileCodes.get(id=file['id'])).first_sent is None
+    finally:
+        release.set()
+        await task
+    assert (await FileCodes.get(id=file['id'])).first_sent is not None
 
 
 async def test_delete_lease_and_retryable_failure(initialized_client):

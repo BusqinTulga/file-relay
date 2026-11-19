@@ -7,8 +7,10 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import tortoise_exception_handlers
 
@@ -91,31 +93,54 @@ app = FastAPI(
 )
 
 
-@app.middleware("http")
-async def refresh_settings_middleware(request, call_next):
-    await refresh_settings()
-    path = request.url.path
-    if any(path == prefix or path.startswith(prefix + "/") for prefix in (
-        "/share", "/chunk", "/presign", "/api/presign", "/mcp"
-    )):
-        return JSONResponse(status_code=410, content={"detail": "旧公开接口已关闭，请使用 FileRelay 配对首页"})
-    if not is_runtime_initialized() and not is_setup_path(request.url.path):
-        if wants_html_response(request):
-            return setup_response(build_setup_page())
-        return JSONResponse(
-            status_code=428,
-            content={
-                "code": 428,
-                "message": "系统未初始化，请先完成初始化",
-                "msg": "系统未初始化，请先完成初始化",
-                "detail": {"setup": "/setup"},
-            },
-        )
-    response = await call_next(request)
-    if path.startswith("/api/relay"):
-        response.headers["Cache-Control"] = "no-store"
-        response.headers["Vary"] = "Cookie"
-    return response
+class RequestMiddleware:
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        await refresh_settings()
+        request = Request(scope)
+        path = request.url.path
+        if any(path == prefix or path.startswith(prefix + "/") for prefix in (
+            "/share", "/chunk", "/presign", "/api/presign", "/mcp"
+        )):
+            response = JSONResponse(status_code=410, content={"detail": "旧公开接口已关闭，请使用 FileRelay 配对首页"})
+            await response(scope, receive, send)
+            return
+        if not is_runtime_initialized() and not is_setup_path(path):
+            if not path.startswith(("/api/", "/admin/")) and wants_html_response(request):
+                response = setup_response(build_setup_page())
+            else:
+                response = JSONResponse(
+                    status_code=428,
+                    headers={"Cache-Control": "no-store"},
+                    content={
+                        "code": 428,
+                        "message": "系统未初始化，请先完成初始化",
+                        "msg": "系统未初始化，请先完成初始化",
+                        "detail": {"setup": "/setup"},
+                    },
+                )
+            await response(scope, receive, send)
+            return
+
+        # Pass body events directly to the server so the download response can
+        # distinguish a completed send from a handoff to a middleware buffer.
+        async def send_relay(message: Message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers["Cache-Control"] = "no-store"
+                headers.add_vary_header("Cookie")
+            await send(message)
+
+        await self.app(scope, receive, send_relay if path.startswith("/api/relay") else send)
+
+
+app.add_middleware(RequestMiddleware)
 
 # Old anonymous protocols are intentionally not registered.
 app.include_router(relay_auth)

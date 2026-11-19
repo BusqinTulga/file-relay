@@ -10,6 +10,12 @@ export interface RelaySession {
   passcode?: string
   device_id?: string
   session_id?: string
+  pending?: RelayPending
+}
+export interface RelayPending {
+  request_id: string
+  status: string
+  expires: number
 }
 export interface RelayFile {
   id: number
@@ -35,8 +41,6 @@ export class RelayError extends Error {
     super(message)
   }
 }
-let csrf = ''
-let sessionID = ''
 export const RelayService = {
   async policy(): Promise<RelayPolicy> {
     const response = await fetch('/api/v1/config', {
@@ -68,42 +72,40 @@ export const RelayService = {
       signal,
       headers: {
         'Content-Type': 'application/json',
-        'X-Relay-CSRF': auth?.csrf ?? csrf,
-        'X-Relay-Session': auth?.session_id ?? sessionID
+        'X-Relay-CSRF': auth?.csrf ?? '',
+        'X-Relay-Session': auth?.session_id ?? ''
       },
       body: body === undefined ? undefined : JSON.stringify(body)
     })
-    const data = await response.json()
-    if (!response.ok)
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
       throw new RelayError(
         response.status,
-        typeof data.detail === 'string' ? data.detail : '请求失败，请重试'
+        typeof data?.detail === 'string' ? data.detail : `请求失败（HTTP ${response.status}），请重试`
       )
-    return data as T
+    }
+    return (await response.json()) as T
   },
   async session(): Promise<RelaySession> {
-    const result = await this.request<RelaySession>('/session')
-    csrf = result.csrf
-    sessionID = result.session_id || ''
-    return result
+    return this.request<RelaySession>('/session')
   },
-  async pair(passcode: string) {
-    return this.request<RelaySession & { status?: string }>('/pair', 'POST', { passcode })
+  async pair(passcode: string, auth: RelaySession) {
+    return this.request<RelaySession | RelayPending>('/pair', 'POST', { passcode }, undefined, auth)
   },
-  async pending() {
-    return this.request<RelaySession & { status?: string }>('/pairing/status', 'POST')
+  async pending(auth: RelaySession) {
+    return this.request<RelaySession | { status: string }>('/pairing/status', 'POST', undefined, undefined, auth)
   },
-  async list() {
-    return this.request<{ session_id: string; files: RelayFile[] }>('/files')
+  async list(auth: RelaySession) {
+    return this.request<{ session_id: string; files: RelayFile[] }>('/files', 'GET', undefined, undefined, auth)
   },
-  async approvals() {
-    return this.request<{ id: string; expires: number }[]>('/pairing/requests')
+  async approvals(auth: RelaySession) {
+    return this.request<{ id: string; expires: number }[]>('/pairing/requests', 'GET', undefined, undefined, auth)
   },
-  async decide(id: string, approve: boolean) {
-    return this.request('/pairing/requests/' + id, 'POST', { approve })
+  async decide(id: string, approve: boolean, auth: RelaySession) {
+    return this.request('/pairing/requests/' + id, 'POST', { approve }, undefined, auth)
   },
-  async remove(id: number) {
-    return this.request('/files/' + id, 'DELETE')
+  async remove(id: number, auth: RelaySession) {
+    return this.request('/files/' + id, 'DELETE', undefined, undefined, auth)
   },
   async start(name: string, size: number, sha256: string, signal: AbortSignal, auth: RelaySession) {
     return this.request<RelayUpload>(
@@ -123,8 +125,8 @@ export const RelayService = {
       auth
     )
   },
-  async cancel(id: string) {
-    return this.request('/uploads/' + id, 'DELETE')
+  async cancel(id: string, auth: RelaySession) {
+    return this.request('/uploads/' + id, 'DELETE', undefined, undefined, auth)
   },
   put(
     id: string,

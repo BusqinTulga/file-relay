@@ -77,8 +77,10 @@ class LeasedDownload(Response):
 
     async def __call__(self, scope, receive, send):
         successful = False
+        peer_disconnected = False
 
         async def transmit():
+            nonlocal successful
             await send({"type": "http.response.start", "status": self.status_code, "headers": self.raw_headers})
             if not self.head:
                 async with aiofiles.open(final_path(self.file.upload_id), "rb") as source:
@@ -91,11 +93,14 @@ class LeasedDownload(Response):
                         await send({"type": "http.response.body", "body": block, "more_body": True})
                         remaining -= len(block)
             await send({"type": "http.response.body", "body": b"", "more_body": False})
+            successful = not self.head and self.eligible and not peer_disconnected
 
         async def disconnected():
+            nonlocal peer_disconnected
             while True:
                 message = await receive()
                 if message["type"] == "http.disconnect":
+                    peer_disconnected = True
                     return
 
         async def heartbeat():
@@ -111,8 +116,6 @@ class LeasedDownload(Response):
         renewer = asyncio.create_task(heartbeat())
         try:
             done, _ = await asyncio.wait({sender, listener, renewer}, return_when=asyncio.FIRST_COMPLETED)
-            if sender in done and not sender.cancelled() and sender.exception() is None and listener not in done:
-                successful = not self.head and self.eligible
             if sender in done:
                 sender.result()
         finally:
