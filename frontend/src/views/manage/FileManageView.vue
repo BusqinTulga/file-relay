@@ -8,7 +8,6 @@ const { t } = useI18n()
 const {
   files,
   total,
-  selected,
   detail,
   params,
   error,
@@ -16,7 +15,6 @@ const {
   actionBusy,
   refresh,
   showDetail,
-  remove,
   download
 } = useAdminFiles()
 const statuses = ['all', 'waiting', 'retry', 'expired', 'pending', 'cleanup_failed']
@@ -25,9 +23,6 @@ const time = (value: number | null) =>
 function search() {
   params.page = 1
   void refresh()
-}
-function confirmRemove(ids: number[]) {
-  if (window.confirm(t('simple.deleteConfirm', { count: ids.length }))) void remove(ids)
 }
 function changePage(delta: number) { params.page += delta; void refresh() }
 onMounted(refresh)
@@ -53,33 +48,11 @@ onMounted(refresh)
       </button>
     </form>
     <p v-if="error" class="admin-error" role="alert">{{ error }}</p>
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <p class="theme-text-muted">{{ t('simple.fileCount', { count: total }) }}</p>
-      <button
-        class="admin-button text-red-600"
-        :disabled="!selected.length || actionBusy || isLoading"
-        @click="confirmRemove(selected)"
-      >
-        {{ t('simple.deleteSelected', { count: selected.length }) }}
-      </button>
-    </div>
+    <p class="theme-text-muted">{{ t('simple.fileCount', { count: total }) }}</p>
     <div class="admin-panel overflow-x-auto p-0">
       <table class="w-full min-w-[760px] text-left text-sm">
         <thead>
           <tr>
-            <th>
-              <input
-                type="checkbox"
-                :aria-label="t('simple.selectAll')"
-                :checked="files.length > 0 && selected.length === files.length"
-                :disabled="isLoading || actionBusy"
-                @change="
-                  selected = ($event.target as HTMLInputElement).checked
-                    ? files.map((f) => f.id)
-                    : []
-                "
-              />
-            </th>
             <th>{{ t('simple.filename') }}</th>
             <th>{{ t('simple.size') }}</th>
             <th>{{ t('simple.uploadTime') }}</th>
@@ -90,15 +63,6 @@ onMounted(refresh)
         </thead>
         <tbody>
           <tr v-for="file in files" :key="file.id">
-            <td>
-              <input
-                v-model="selected"
-                type="checkbox"
-                :value="file.id"
-                :aria-label="file.name"
-                :disabled="isLoading || actionBusy"
-              />
-            </td>
             <td class="max-w-56 break-all">{{ file.name }}</td>
             <td class="whitespace-nowrap">{{ formatFileSize(file.size) }}</td>
             <td>{{ time(file.published) }}</td>
@@ -111,19 +75,13 @@ onMounted(refresh)
                   :disabled="actionBusy || !['waiting', 'retry'].includes(file.status)"
                   @click="download(file)"
                 >
-                  {{ t('simple.download') }}</button
-                ><button
-                  :disabled="actionBusy"
-                  class="text-red-600"
-                  @click="confirmRemove([file.id])"
-                >
-                  {{ t('simple.delete') }}
+                  {{ t('simple.download') }}
                 </button>
               </div>
             </td>
           </tr>
           <tr v-if="!files.length">
-            <td colspan="7" class="py-12 text-center theme-text-muted">
+            <td colspan="6" class="py-12 text-center theme-text-muted">
               {{ t(isLoading ? 'simple.loading' : 'simple.empty') }}
             </td>
           </tr>
@@ -156,7 +114,7 @@ onMounted(refresh)
         </div>
         <div>
           <dt>{{ t('simple.size') }}</dt>
-          <dd>{{ formatFileSize(detail.size) }} · {{ detail.size }} B</dd>
+          <dd>{{ formatFileSize(detail.size) }}</dd>
         </div>
         <div>
           <dt>{{ t('simple.uploadTime') }}</dt>

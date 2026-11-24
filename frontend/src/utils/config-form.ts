@@ -1,14 +1,16 @@
-export type FileSizeUnit = 'B' | 'KB' | 'MB' | 'GB'
-const powers = { B: 0, KB: 3, MB: 6, GB: 9 }
-export function bytesToFileSizeForm(bytes: number): { value: number; unit: FileSizeUnit } {
-  const unit: FileSizeUnit = bytes >= 1e9 ? 'GB' : bytes >= 1e6 ? 'MB' : bytes >= 1e3 ? 'KB' : 'B'
+export type FileSizeUnit = 'MB' | 'GB'
+const powers = { MB: 6, GB: 9 }
+export function bytesToFileSizeForm(
+  bytes: number,
+  unit: FileSizeUnit = bytes >= 1e9 ? 'GB' : 'MB'
+): { value: number; unit: FileSizeUnit } {
   return { value: bytes / 10 ** powers[unit], unit }
 }
 export function fileSizeFormToBytes(value: number, unit: FileSizeUnit): number {
   // Work with decimal digits so untouched legacy byte values survive a round trip.
   const match = String(value).match(/^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i)
   const fail = () => {
-    throw new Error('请输入可精确表示为整数字节的正数')
+    throw new Error('请输入有效正数，MB 最多 6 位小数，GB 最多 9 位小数。')
   }
   if (!match) return fail()
   const fraction = match[2] || ''

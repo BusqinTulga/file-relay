@@ -3,10 +3,14 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { createContext, SourceTextModule, SyntheticModule } from 'node:vm'
 import ts from 'typescript'
-const source = readFileSync(new URL('../src/composables/useRelay.ts', import.meta.url), 'utf8')
-const { outputText } = ts.transpileModule(source, {
-  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext }
-})
+const transpile = (path) => ts.transpileModule(
+  readFileSync(new URL(path, import.meta.url), 'utf8'),
+  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }
+).outputText
+const outputText = transpile('../src/composables/useRelay.ts')
+const { formatSizeLimit } = await import(
+  'data:text/javascript;base64,' + Buffer.from(transpile('../src/utils/common.ts')).toString('base64')
+)
 const flush = () => new Promise((resolve) => setImmediate(resolve))
 async function harness(overrides = {}, hash = async () => 'hash') {
   let mount, unmount
@@ -38,13 +42,15 @@ async function harness(overrides = {}, hash = async () => 'hash') {
       }
     },
     '@/services': { RelayService: service, RelayError },
-    '@/utils/relay-sha256': { hashRelayFile: hash }
+    '@/utils/relay-sha256': { hashRelayFile: hash },
+    '@/utils/common': { formatSizeLimit }
   }
   const context = createContext({
     document,
     window,
     AbortController,
     DOMException,
+    Error,
     console,
     setTimeout: (cb, delay) => {
       timers.push({ cb, delay })
@@ -95,13 +101,13 @@ test('failed refresh keeps the current list and schedules backoff', async () => 
   }
   await timers.at(-1).cb()
   assert.equal(flow.files.value.length, 1)
-  assert.match(flow.refreshState.value, /重试/)
+  assert.equal(flow.error.value, 'offline')
   assert.ok(timers.at(-1).delay <= 4000 && timers.at(-1).delay >= 3900)
   unmount()
 })
 test('hidden page does not poll files', async () => {
   let calls = 0
-  const { flow, document, unmount } = await harness({
+  const { document, timers, unmount } = await harness({
     list: async () => {
       calls++
       return { session_id: 'a', files: [] }
@@ -109,7 +115,7 @@ test('hidden page does not poll files', async () => {
   })
   const before = calls
   document.hidden = true
-  await flow.refresh()
+  await timers.at(-1).cb()
   assert.equal(calls, before)
   unmount()
 })
@@ -117,7 +123,7 @@ test('hidden page does not poll files', async () => {
 test('reload restores a pending application and claims approval', async () => {
   const pending = { request_id: 'example', status: 'pending', expires: 100 }
   const unpaired = { paired: false, csrf: 'bootstrap', pending }
-  const { flow, service, auth, unmount } = await harness({
+  const { flow, service, auth, timers, unmount } = await harness({
     session: async () => unpaired,
     pending: async (session) => {
       assert.equal(session, unpaired)
@@ -127,7 +133,7 @@ test('reload restores a pending application and claims approval', async () => {
   assert.equal(flow.mode.value, 'waiting')
   assert.equal(flow.pendingRequest.value, pending)
   service.pending = async () => auth
-  await flow.refresh()
+  await timers.at(-1).cb()
   assert.equal(flow.mode.value, 'relay')
   assert.equal(flow.session.value, auth)
   assert.equal(flow.pendingRequest.value, null)
@@ -167,7 +173,7 @@ test('re-pair during hashing stops old queue before creating an upload', async (
   unmount()
 })
 test('changed browser cookie clears old list before new list arrives', async () => {
-  const { flow, service, auth, unmount } = await harness({
+  const { flow, service, auth, timers, unmount } = await harness({
     list: async () => ({ session_id: 'a', files: [{ id: 1 }] })
   })
   service.session = async () => ({ ...auth, session_id: 'b' })
@@ -176,7 +182,7 @@ test('changed browser cookie clears old list before new list arrives', async () 
     new Promise((resolve) => {
       release = resolve
     })
-  const refresh = flow.refresh()
+  const refresh = timers.at(-1).cb()
   await flush()
   assert.equal(flow.files.value.length, 0)
   release({ session_id: 'b', files: [{ id: 2 }] })
@@ -257,15 +263,15 @@ test('page-wide dragover accepts files and preserves ordinary text dragging', as
 })
 
 test('remote file limit rejects before hashing and retry uses the raised limit', async () => {
-  let hashes = 0, starts = 0, limit = 10_000_000
+  let hashes = 0, starts = 0, limit = 10_485_760
   const { flow, unmount } = await harness({
     policy: async () => ({ upload_size: limit, storage_limit: 500_000_000_000, open_upload: 1 }),
     start: async () => { starts++; throw new Error('upload reached') }
   }, async () => { hashes++; return 'hash' })
-  flow.addFiles([{ name: 'too-large', size: 10_000_001 }])
+  flow.addFiles([{ name: 'too-large', size: 10_490_000 }])
   await flush()
   assert.equal(flow.queue.value[0].state, '失败')
-  assert.match(flow.queue.value[0].error, /10000000/)
+  assert.match(flow.queue.value[0].error, /10\.48576 MB/)
   assert.equal(hashes, 0)
   assert.equal(starts, 0)
   limit = 11_000_000

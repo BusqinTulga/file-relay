@@ -7,6 +7,9 @@ import { usePublicConfigBootstrap } from './usePublicConfigBootstrap'
 import { useRouteLoading } from './useRouteLoading'
 import { useAdminStore } from '@/stores/adminStore'
 
+const selectionHighlightName = 'filerelay-selection'
+const selectionHighlightClass = 'uses-text-selection-highlight'
+
 export function useAppShell() {
   const route = useRoute()
   const router = useRouter()
@@ -25,6 +28,20 @@ export function useAppShell() {
 
   let cleanupThemeListener: (() => void) | null = null
   let setupRedirecting = false
+
+  const updateSelectionHighlight = () => {
+    const selection = document.getSelection()
+    if (!selection || selection.isCollapsed) {
+      CSS.highlights.delete(selectionHighlightName)
+      return
+    }
+
+    // Reuse native ranges so highlighting follows the selection without changing what is copied.
+    const ranges = Array.from({ length: selection.rangeCount }, (_, index) =>
+      selection.getRangeAt(index)
+    )
+    CSS.highlights.set(selectionHighlightName, new Highlight(...ranges))
+  }
 
   const handleUnauthorized = () => {
     adminStore.logout()
@@ -59,6 +76,15 @@ export function useAppShell() {
   onMounted(() => {
     cleanupThemeListener = initTheme()
     setupRouteLoading()
+    if (
+      typeof Highlight === 'function' &&
+      CSS.highlights &&
+      CSS.supports(`selector(::highlight(${selectionHighlightName}))`)
+    ) {
+      document.documentElement.classList.add(selectionHighlightClass)
+      document.addEventListener('selectionchange', updateSelectionHighlight)
+      updateSelectionHighlight()
+    }
     window.addEventListener(AUTH_EVENTS.UNAUTHORIZED, handleUnauthorized)
     window.addEventListener(AUTH_EVENTS.SETUP_REQUIRED, handleSetupRequired)
     void syncPublicConfig()
@@ -66,6 +92,9 @@ export function useAppShell() {
 
   onUnmounted(() => {
     cleanupThemeListener?.()
+    document.documentElement.classList.remove(selectionHighlightClass)
+    document.removeEventListener('selectionchange', updateSelectionHighlight)
+    CSS.highlights?.delete(selectionHighlightName)
     window.removeEventListener(AUTH_EVENTS.UNAUTHORIZED, handleUnauthorized)
     window.removeEventListener(AUTH_EVENTS.SETUP_REQUIRED, handleSetupRequired)
   })

@@ -107,8 +107,8 @@
         class="flex justify-between text-xs mb-1"
         :class="[isDarkMode ? 'text-zinc-400' : 'text-slate-500']"
       >
-        <span>{{ formatBytes(uploadedBytes) }} / {{ formatBytes(totalBytes) }}</span>
-        <span v-if="uploadSpeed > 0">{{ formatBytes(uploadSpeed) }}/s</span>
+        <span>{{ formatFileSize(uploadedBytes) }} / {{ formatFileSize(totalBytes) }}</span>
+        <span v-if="uploadSpeed > 0">{{ formatFileSize(uploadSpeed) }}/s</span>
         <span>{{ progress }}%</span>
       </div>
     </div>
@@ -135,6 +135,7 @@ import { UploadCloudIcon, CheckCircleIcon, XCircleIcon, LoaderIcon } from 'lucid
 import BorderProgressBar from './BorderProgressBar.vue'
 import { useI18n } from 'vue-i18n'
 import { useInjectedDarkMode } from '@/composables'
+import { formatFileSize } from '@/utils/common'
 
 const { t } = useI18n()
 
@@ -281,14 +282,6 @@ const statusDescriptionClass = computed(() => {
   }
   return isDarkMode.value ? 'text-zinc-500' : 'text-slate-400'
 })
-
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
 
 const triggerFileUpload = () => {
   // 上传中或成功状态下不允许重新选择文件

@@ -3,8 +3,7 @@ export const STORAGE_KEYS = {
   ADMIN_PASSWORD: 'adminPassword',
   TOKEN: 'token',
   TOKEN_EXPIRES_AT: 'tokenExpiresAt',
-  CONFIG: 'config',
-  NOTIFY: 'notify'
+  CONFIG: 'config'
 } as const
 
 export const THEME_MODES = {
@@ -24,8 +23,7 @@ export const API_STATUS_CODES = {
 
 export const TIME_CONSTANTS = {
   ALERT_DURATION: 5000, // 5秒
-  REQUEST_TIMEOUT: 300000000,
-  PROGRESS_UPDATE_INTERVAL: 100 // 100毫秒
+  REQUEST_TIMEOUT: 300000000
 } as const
 
 export const ROUTES = {

@@ -8,7 +8,7 @@ from core.security import generate_jwt_secret
 from core.settings import settings, data_root, ADMIN_SESSION_EXPIRE_MIN, ADMIN_SESSION_EXPIRE_MAX
 from core.utils import hash_password
 
-EDITABLE = {"name", "description", "notify_title", "notify_content", "admin_token",
+EDITABLE = {"name", "description", "admin_token",
             "admin_session_expire", "show_admin_addr", "open_upload", "upload_size", "storage_limit"}
 
 
@@ -28,8 +28,8 @@ class ConfigService:
                 value = data["admin_session_expire"]
                 if type(value) is not int or not ADMIN_SESSION_EXPIRE_MIN <= value <= ADMIN_SESSION_EXPIRE_MAX or value % ADMIN_SESSION_EXPIRE_MIN:
                     raise ValueError("登录有效期必须为 1 至 365 个整天")
-            for key in ("name", "description", "notify_title", "notify_content", "admin_token"):
-                if key in data and (not isinstance(data[key], str) or len(data[key]) > (5000 if key == "notify_content" else 255)):
+            for key in ("name", "description", "admin_token"):
+                if key in data and (not isinstance(data[key], str) or len(data[key]) > 255):
                     raise ValueError(f"{key} 格式或长度错误")
             if "name" in data and not data["name"].strip():
                 raise ValueError("站点名称不能为空")

@@ -3,7 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDashboardStats } from '@/composables'
 import { useConfigStore } from '@/stores/configStore'
-import { formatFileSize } from '@/utils/common'
+import { formatFileSize, formatSizeLimit } from '@/utils/common'
 const { t } = useI18n()
 const { data, error, isLoading, refresh } = useDashboardStats()
 const config = useConfigStore()
@@ -48,7 +48,7 @@ onMounted(refresh)
         <dl class="grid gap-5 sm:grid-cols-2">
           <div>
             <dt>{{ t('simple.limit') }}</dt>
-            <dd>{{ formatFileSize(data.storage_limit) }}</dd>
+            <dd>{{ formatSizeLimit(data.storage_limit) }}</dd>
           </div>
           <div>
             <dt>{{ t('simple.occupied') }}</dt>
@@ -74,7 +74,7 @@ onMounted(refresh)
           <div>
             <dt>{{ t('simple.fileLimit') }}</dt>
             <dd>
-              {{ formatFileSize(data.upload_size) }} · {{ data.upload_size.toLocaleString() }} B
+              {{ formatSizeLimit(data.upload_size) }}
             </dd>
           </div>
           <div>

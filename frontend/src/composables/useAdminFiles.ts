@@ -5,8 +5,7 @@ import { getErrorMessage } from '@/utils/common'
 import { saveDownload } from '@/utils/download-action'
 export function useAdminFiles() {
   const files = ref<AdminFile[]>([]),
-    total = ref(0),
-    selected = ref<number[]>([])
+    total = ref(0)
   const detail = ref<AdminFile | null>(null),
     error = ref(''),
     isLoading = ref(false),
@@ -23,7 +22,6 @@ export function useAdminFiles() {
       if (!result.detail) throw new Error('无法读取文件')
       files.value = result.detail.files
       total.value = result.detail.total
-      selected.value = []
       if (!files.value.length && total.value && params.page > 1) {
         params.page--
         await refresh()
@@ -42,23 +40,6 @@ export function useAdminFiles() {
       error.value = getErrorMessage(e, '读取详情失败')
     }
   }
-  async function remove(ids: number[]) {
-    if (!ids.length || actionBusy.value) return
-    actionBusy.value = true
-    error.value = ''
-    try {
-      const result = await FileService.batchRemove(ids)
-      const failed =
-        result.detail?.failed.map((item) => `${item.id}: ${item.reason}`).join('；') || ''
-      detail.value = null
-      await refresh()
-      error.value = failed
-    } catch (e) {
-      error.value = getErrorMessage(e, '删除失败')
-    } finally {
-      actionBusy.value = false
-    }
-  }
   async function download(file: AdminFile) {
     if (actionBusy.value) return
     actionBusy.value = true
@@ -75,7 +56,6 @@ export function useAdminFiles() {
   return {
     files,
     total,
-    selected,
     detail,
     params,
     error,
@@ -83,7 +63,6 @@ export function useAdminFiles() {
     actionBusy,
     refresh,
     showDetail,
-    remove,
     download
   }
 }

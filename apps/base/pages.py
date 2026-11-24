@@ -58,7 +58,7 @@ async def setup_submit(request: Request):
         return setup_response(build_setup_page(str(exc), data), 400)
 
     if "application/json" in request.headers.get("accept", ""):
-        return APIResponse(detail={"ok": True, "admin": "/#/admin"})
+        return APIResponse(detail={"ok": True, "admin": "/admin/dashboard"})
     return setup_response(build_setup_success_page())
 
 def resolve_theme_root():

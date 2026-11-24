@@ -19,10 +19,9 @@ if not data_root.exists():
 DEFAULT_CONFIG: dict[str, Any] = {
     "name": "FileRelay／文件接力",
     "description": "在你的设备之间，轻松传递文件",
-    "notify_title": "系统通知", "notify_content": "",
     "admin_token": "", "jwt_secret": "",
     "admin_session_expire": ADMIN_SESSION_EXPIRE_DEFAULT,
-    "open_upload": 1, "upload_size": 1_000_000_000,
+    "open_upload": 1, "upload_size": 5_000_000_000,
     "storage_limit": 500_000_000_000, "show_admin_addr": 0,
     "login_count": 5, "login_minute": 15,
     "server_workers": 1, "server_host": "0.0.0.0", "server_port": 12345,

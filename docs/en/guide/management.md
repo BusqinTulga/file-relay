@@ -12,10 +12,10 @@ FileCodeBox provides a fully-featured admin panel that allows administrators to 
 
 ### Login Method
 
-The admin panel is located at `/#/admin` (a frontend hash route). Access method:
+The admin panel is located at `/admin/dashboard`. Access method:
 
 1. On first run, set the admin password on the setup page
-2. Visit `http://your-domain.com/#/admin` in your browser
+2. Visit `http://your-domain.com/admin/dashboard` in your browser
 3. Enter the admin password (the value of the `admin_token` configuration)
 4. Click the login button
 
@@ -32,7 +32,7 @@ By default, the admin panel entry is not shown on the homepage. You can control 
 | `show_admin_addr` | int | `0` | Show admin entry on homepage (1=show, 0=hide) |
 
 ::: warning Security Recommendation
-For public services, keep `show_admin_addr` at `0` and access the admin panel via `/#/admin`. Hiding the link is not access control; a strong password is still required.
+For public services, keep `show_admin_addr` at `0` and access the admin panel via `/admin/dashboard`. Hiding the link is not access control; a strong password is still required.
 :::
 
 ### Authentication Mechanism
@@ -119,20 +119,7 @@ The file list supports paginated display:
 
 ### Delete Files
 
-Administrators can delete any file:
-
-1. Find the file to delete in the file list
-2. Click the delete button
-3. Confirm the delete operation
-
-::: danger Warning
-Delete operations are irreversible! Files will be permanently deleted from the storage backend, and database records will also be removed.
-:::
-
-**Delete process:**
-1. System first deletes the actual file from the storage backend (local/S3/OneDrive, etc.)
-2. Then deletes the file record from the database
-3. After deletion, the corresponding extraction code becomes invalid
+The admin file management page provides file details and downloads, but no delete button. To delete a file early, use the FileRelay shared file list.
 
 ### Download Files
 
@@ -236,13 +223,13 @@ Administrators can modify most configurations through the admin panel:
 1. Go to the system settings page
 2. Find the configuration item to modify
 3. Enter the new value
-4. Click the save button
+4. The setting saves automatically and takes effect after you stop typing; no save button is needed
 
 **Modifiable configuration items:**
 
 | Category | Example Settings |
 |----------|------------------|
-| Basic Settings | `name`, `description`, `keywords`, `notify_title`, `notify_content` |
+| Basic Settings | `name`, `description` |
 | Upload Settings | `upload_size`, `upload_minute`, `upload_count`, `open_upload`, `enable_chunk` |
 | Expiration Settings | `expire_style`, `max_save_seconds` |
 | Theme Settings | `themes_select`, `opacity`, `background` |
@@ -421,10 +408,10 @@ If an error occurs when deleting files, possible reasons:
 
 If configuration changes don't take effect:
 
-1. Check if you clicked the save button
-2. Refresh the page to see if configuration was saved
+1. Check the page for a save error
+2. Confirm the configuration value format is correct (e.g., don't enter strings for numeric types)
 3. Check browser console for error messages
-4. Confirm configuration value format is correct (e.g., don't enter strings for numeric types)
+4. Refresh the page to confirm the current setting value
 
 ## Next Steps
 

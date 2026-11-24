@@ -3,14 +3,14 @@ import html
 from urllib.parse import parse_qs
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from apps.relay.policy import policy, validate_limits
+from apps.relay.policy import format_size, policy, validate_limits
 from core.settings import settings
 from core.version import APP_VERSION
 
 
 def build_public_config():
     return {key: getattr(settings, key) for key in
-            ("name", "description", "notify_title", "notify_content", "show_admin_addr")} | policy()
+            ("name", "description", "show_admin_addr")} | policy()
 
 
 def build_public_meta():
@@ -37,12 +37,12 @@ button{{background:#18181b;color:white;cursor:pointer}}p{{line-height:1.7}}.erro
 <label>站点名称<input name="site_name" maxlength="80" value="{name}" required></label>
 <label>管理员密码<input name="admin_password" type="password" minlength="8" maxlength="255" autocomplete="new-password" required></label>
 <label>确认密码<input name="confirm_password" type="password" minlength="8" maxlength="255" autocomplete="new-password" required></label>
-<p>默认单文件上限 1 GB，全站 500 GB，可在后台调低。文件最多保留 24 小时，首次完整下载后保留 10 分钟。</p>
+<p>当前单文件上限 {format_size(settings.upload_size)}，全站 {format_size(settings.storage_limit)}，可在后台调整。文件最多保留 24 小时，首次完整下载后保留 10 分钟。</p>
 <button>完成初始化</button></form></main></html>'''
 
 
 def build_setup_success_page():
-    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>初始化完成</title><h1>初始化完成</h1><p><a href="/">开始文件接力</a> · <a href="/#/admin">进入管理后台</a></p></html>'
+    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>初始化完成</title><h1>初始化完成</h1><p><a href="/">开始文件接力</a> · <a href="/admin/dashboard">进入管理后台</a></p></html>'
 
 
 def setup_response(content, status_code=200):

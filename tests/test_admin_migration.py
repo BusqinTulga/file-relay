@@ -119,6 +119,15 @@ async def test_upgrade_preserves_ids_credentials_inflight_leases_deadlines_and_d
         assert (await c.get('/api/relay/session')).json()['session_id'] == identity['session_id']
 
 
+async def test_pre_cleanup_database_with_null_settings_keeps_old_limit(old_database):
+    await KeyValue.filter(key="settings").update(value=None)
+
+    await execute_migrations()
+    await refresh_settings(force=True)
+
+    assert (await KeyValue.get(key="settings")).value["upload_size"] == 1_000_000_000
+
+
 async def test_failed_upgrade_rolls_back_schema_and_can_restore_backup(old_database):
     conn, root, migration = old_database
     await conn.execute_query("CREATE TRIGGER fail_update BEFORE UPDATE ON keyvalue BEGIN SELECT RAISE(ABORT, 'upgrade interrupted'); END")

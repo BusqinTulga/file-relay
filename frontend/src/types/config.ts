@@ -1,8 +1,6 @@
 export interface ConfigState {
   name: string
   description: string
-  notify_title: string
-  notify_content: string
   show_admin_addr: number
   admin_token: string
   admin_session_expire: number

@@ -4,8 +4,6 @@ export type PublicConfig = Pick<
   ConfigState,
   | 'name'
   | 'description'
-  | 'notify_title'
-  | 'notify_content'
   | 'show_admin_addr'
   | 'upload_size'
   | 'storage_limit'
@@ -14,8 +12,6 @@ export type PublicConfig = Pick<
 export const DEFAULT_PUBLIC_CONFIG: PublicConfig = {
   name: 'FileRelay／文件接力',
   description: '在你的设备之间，轻松传递文件',
-  notify_title: '',
-  notify_content: '',
   show_admin_addr: 0,
   upload_size: 0,
   storage_limit: 0,
@@ -46,10 +42,4 @@ export function readStoredConfig<T extends object = Partial<ConfigState>>(): T |
 }
 export function writeStoredConfig(config: object) {
   localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(toPublicConfig(config)))
-}
-export function readNotifyKey() {
-  return localStorage.getItem(STORAGE_KEYS.NOTIFY)
-}
-export function writeNotifyKey(key: string) {
-  localStorage.setItem(STORAGE_KEYS.NOTIFY, key)
 }

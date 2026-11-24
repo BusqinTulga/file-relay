@@ -136,7 +136,7 @@ python main.py
 
 4. 后台管理
    - 首次访问 `http://localhost:12345` 完成初始化
-   - 访问 `http://localhost:12345/#/admin`
+   - 访问 `http://localhost:12345/admin/dashboard`
    - 输入初始化时设置的管理员密码
    - 进入后台管理页面
    - 查看系统信息、文件列表、活动记录和系统配置

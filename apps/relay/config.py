@@ -1,7 +1,7 @@
 """Frozen v1 product rules. Epoch seconds are UTC, independent of host timezone."""
 import time
 
-MAX_FILE = 1_000_000_000
+MAX_FILE = 5_000_000_000
 MAX_STORAGE = 500_000_000_000
 FILE_TTL = 24 * 3600
 RETRY_WINDOW = 10 * 60

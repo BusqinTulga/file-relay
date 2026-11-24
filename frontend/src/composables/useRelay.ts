@@ -2,6 +2,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { RelayService, RelayError } from '@/services'
 import type { RelayFile, RelaySession, RelayPending, RelayPolicy } from '@/services'
 import { hashRelayFile } from '@/utils/relay-sha256'
+import { formatSizeLimit } from '@/utils/common'
 
 interface QueueItem {
   key: number
@@ -23,7 +24,6 @@ export function useRelay() {
   const pendingRequest = ref<RelayPending | null>(null)
   const queue = ref<QueueItem[]>([])
   const error = ref('')
-  const refreshState = ref('正在连接…')
   const policy = ref<RelayPolicy | null>(null)
   const busy = ref(false)
   const queueRunning = ref(false)
@@ -111,13 +111,11 @@ export function useRelay() {
       policy.value = limits
       files.value = listing.files
       requests.value = pending
-      refreshState.value = '已同步 · 每 2 秒刷新'
       if (failures) error.value = ''
       failures = 0
     } catch (e) {
       if (epoch !== generation) return
       failures++
-      refreshState.value = '连接失败，正在重试…'
       handleError(e)
     } finally {
       polling = false
@@ -233,7 +231,7 @@ export function useRelay() {
           if (!policy.value.open_upload) throw new Error('上传已暂停，请稍后重试')
           if (item.file.size > policy.value.upload_size)
             throw new Error(
-              `单文件上限为 ${policy.value.upload_size} 字节（${policy.value.upload_size / 1_000_000} MB）`
+              `文件大小超过单文件上限（${formatSizeLimit(policy.value.upload_size)}）`
             )
           item.state = '校验文件'
           item.error = ''
@@ -386,7 +384,6 @@ export function useRelay() {
     pendingRequest,
     queue,
     error,
-    refreshState,
     busy,
     policy,
     pair,
@@ -397,7 +394,6 @@ export function useRelay() {
     addFiles,
     retry,
     canRetry,
-    cancel,
-    refresh: () => sync()
+    cancel
   }
 }

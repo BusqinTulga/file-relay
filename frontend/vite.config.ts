@@ -46,7 +46,19 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": "http://127.0.0.1:12345",
-      "/admin": "http://127.0.0.1:12345",
+      "/admin": {
+        target: "http://127.0.0.1:12345",
+        bypass(req) {
+          const path = req.url?.split('?')[0] ?? ''
+          if (
+            req.method === 'GET' &&
+            req.headers.accept?.includes('text/html') &&
+            /^\/admin(?:\/(?:dashboard|files|local|mcp|settings))?\/?$/.test(path)
+          ) {
+            return '/index.html'
+          }
+        }
+      },
       "/setup": "http://127.0.0.1:12345"
     }
   },

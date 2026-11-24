@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory, START_LOCATION } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { ROUTE_NAMES, ROUTES } from '@/constants'
 import { hasValidStoredAdminSession } from '@/utils/auth-storage'
@@ -85,11 +85,20 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
-router.beforeEach((to) => {
+router.beforeEach((to, from) => {
+  if (from === START_LOCATION && to.path === ROUTES.HOME && to.hash.startsWith('#/')) {
+    const legacy = to.fullPath.slice(to.fullPath.indexOf('#') + 1)
+    const target = router.resolve(legacy)
+    if (target.path !== ROUTES.HOME &&
+        (target.name || target.matched.some((record) => record.path === ROUTES.ADMIN))) {
+      return { path: target.path, query: target.query, hash: target.hash, replace: true }
+    }
+  }
+
   if (to.meta.requiresAuth && !hasValidStoredAdminSession()) {
     return {
       path: ROUTES.LOGIN,

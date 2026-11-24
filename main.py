@@ -7,7 +7,8 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -22,7 +23,11 @@ from apps.base.config import (
     refresh_settings,
 )
 from apps.base.models import KeyValue
-from apps.base.pages import not_found_handler, router as pages_router
+from apps.base.pages import (
+    index as render_index,
+    not_found_handler,
+    router as pages_router,
+)
 from apps.base.setup_wizard import build_setup_page, is_setup_path, setup_response, wants_html_response
 from apps.relay.auth import router as relay_auth
 from apps.relay.uploads import router as relay_uploads
@@ -92,6 +97,19 @@ app = FastAPI(
     exception_handlers=tortoise_exception_handlers(),
 )
 
+# Direct browser visits to these Vue routes need the SPA shell. The dashboard
+# path is also a JSON API endpoint, so only HTML navigations are intercepted.
+FRONTEND_HISTORY_PATHS = frozenset({
+    "/send",
+    "/login",
+    "/admin",
+    "/admin/dashboard",
+    "/admin/files",
+    "/admin/local",
+    "/admin/mcp",
+    "/admin/settings",
+})
+
 
 class RequestMiddleware:
     def __init__(self, app: ASGIApp):
@@ -105,6 +123,12 @@ class RequestMiddleware:
         await refresh_settings()
         request = Request(scope)
         path = request.url.path
+        is_history_path = path.rstrip("/") in FRONTEND_HISTORY_PATHS
+        is_frontend_navigation = (
+            request.method == "GET"
+            and is_history_path
+            and "text/html" in request.headers.get("accept", "")
+        )
         if any(path == prefix or path.startswith(prefix + "/") for prefix in (
             "/share", "/chunk", "/presign", "/api/presign", "/mcp"
         )):
@@ -112,7 +136,9 @@ class RequestMiddleware:
             await response(scope, receive, send)
             return
         if not is_runtime_initialized() and not is_setup_path(path):
-            if not path.startswith(("/api/", "/admin/")) and wants_html_response(request):
+            if is_frontend_navigation or (
+                not path.startswith(("/api/", "/admin/")) and wants_html_response(request)
+            ):
                 response = setup_response(build_setup_page())
             else:
                 response = JSONResponse(
@@ -128,16 +154,28 @@ class RequestMiddleware:
             await response(scope, receive, send)
             return
 
-        # Pass body events directly to the server so the download response can
-        # distinguish a completed send from a handoff to a middleware buffer.
-        async def send_relay(message: Message):
+        async def send_with_headers(message: Message):
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                headers["Cache-Control"] = "no-store"
-                headers.add_vary_header("Cookie")
+                if is_history_path:
+                    headers.add_vary_header("Accept")
+                if path.startswith("/api/relay"):
+                    headers["Cache-Control"] = "no-store"
+                    headers.add_vary_header("Cookie")
             await send(message)
 
-        await self.app(scope, receive, send_relay if path.startswith("/api/relay") else send)
+        if is_frontend_navigation:
+            try:
+                response = await render_index(request)
+            except HTTPException as exc:
+                response = await http_exception_handler(request, exc)
+            await response(scope, receive, send_with_headers)
+            return
+
+        # Pass body events directly to the server so the download response can
+        # distinguish a completed send from a handoff to a middleware buffer.
+        use_response_headers = is_history_path or path.startswith("/api/relay")
+        await self.app(scope, receive, send_with_headers if use_response_headers else send)
 
 
 app.add_middleware(RequestMiddleware)

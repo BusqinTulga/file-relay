@@ -8,7 +8,7 @@ FileCodeBox 提供了丰富的配置选项。请优先通过管理面板修改�
 
 FileCodeBox 支持两种配置方式：
 
-1. **管理面板配置**（推荐）：访问 `/#/admin` 进入管理面板，在设置页面修改配置
+1. **管理面板配置**（推荐）：访问 `/admin/dashboard` 进入管理面板，在设置页面修改配置
 2. **数据库配置**：配置存储在 `data/filecodebox.db` 数据库中
 
 ::: tip 提示
@@ -27,15 +27,6 @@ FileCodeBox 支持两种配置方式：
 | `server_host` | string | `0.0.0.0` | 服务监听地址 |
 | `server_port` | int | `12345` | 服务监听端口 |
 | `server_workers` | int | `1` | 工作进程数；SQLite 部署建议保持单进程 |
-
-### 通知设置
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `notify_title` | string | `系统通知` | 通知标题 |
-| `notify_content` | string | 欢迎信息 | 通知内容，支持 HTML |
-| `page_explain` | string | 法律声明 | 页面底部说明文字 |
-| `robots_text` | string | `User-agent: *\nDisallow: /` | robots.txt 内容 |
 
 ## 上传设置
 
@@ -194,7 +185,7 @@ FileCodeBox 支持两种配置方式：
 ```python
 {
     "name": "企业文件中转站",
-    "upload_size": 1073741824,      # 1GB
+    "upload_size": 5000000000,       # 5GB
     "enable_chunk": 1,              # 启用分片上传
     "upload_minute": 10,            # 10分钟
     "upload_count": 100,            # 最多100次

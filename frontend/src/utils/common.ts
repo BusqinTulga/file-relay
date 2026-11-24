@@ -1,8 +1,21 @@
 import type { ApiErrorPayload, ApiResponse } from '@/types'
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const index = Math.max(0, Math.min(4, Math.floor(Math.log(bytes) / Math.log(1000))))
-  return `${Number((bytes / 1000 ** index).toFixed(2))} ${['B', 'KB', 'MB', 'GB', 'TB'][index]}`
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB'
+  const units = ['MB', 'GB', 'TB', 'PB']
+  let value = bytes / 1_000_000
+  let index = 0
+  const precision = bytes < 1_000_000 ? 6 : 2
+  while (index < units.length - 1 && Number(value.toFixed(precision)) >= 1000) {
+    value /= 1000
+    index += 1
+  }
+  return `${Number(value.toFixed(precision))} ${units[index]}`
+}
+
+export function formatSizeLimit(bytes: number): string {
+  const decimals = bytes >= 1_000_000_000 ? 9 : 6
+  const value = Number((bytes / 10 ** decimals).toFixed(decimals))
+  return `${value} ${decimals === 9 ? 'GB' : 'MB'}`
 }
 
 type ErrorWithResponse = {

@@ -56,6 +56,21 @@ class TestApiContractSnakeCase:
         assert response.status_code == 200
         _check_contract(response.json(), "/admin/dashboard")
 
+    async def test_history_routes_serve_html_without_shadowing_admin_api(self, initialized_client, tmp_path, monkeypatch):
+        from apps.base import pages
+
+        (tmp_path / "index.html").write_text("<html><body>SPA shell</body></html>")
+        monkeypatch.setattr(pages, "resolve_theme_root", lambda: tmp_path)
+        for path in ("/admin/dashboard", "/admin/settings/"):
+            response = await initialized_client.get(path, headers={"Accept": "text/html"})
+            assert response.status_code == 200 and "SPA shell" in response.text
+            assert response.headers["Vary"] == "Accept"
+
+        response = await initialized_client.get("/admin/dashboard", headers={"Accept": "application/json"})
+        assert response.status_code == 401
+        assert response.headers["Content-Type"] == "application/json"
+        assert response.headers["Vary"] == "Accept"
+
     async def test_admin_file_list(self, initialized_client):
         token = await _login(initialized_client)
         response = await initialized_client.get(

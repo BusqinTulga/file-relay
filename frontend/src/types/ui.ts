@@ -6,7 +6,5 @@ export interface Alert {
   id: number
   message: string
   type: AlertType
-  progress: number
   duration: number
-  startTime: number
 }

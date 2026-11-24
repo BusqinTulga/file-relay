@@ -3,7 +3,7 @@ import { ConfigService } from '@/services'
 import { useConfigStore } from '@/stores/configStore'
 import { useAdminStore } from '@/stores/adminStore'
 import { DEFAULT_CONFIG_STATE } from '@/utils/config-storage'
-import { bytesToFileSizeForm, fileSizeFormToBytes } from '@/utils/config-form'
+import { bytesToFileSizeForm, fileSizeFormToBytes, type FileSizeUnit } from '@/utils/config-form'
 import { getErrorMessage } from '@/utils/common'
 import type { ConfigState } from '@/types'
 export function useSystemConfig() {
@@ -34,6 +34,16 @@ export function useSystemConfig() {
       return true
     }
   })
+  function changeSizeUnit(size: typeof fileSize.value, unit: FileSizeUnit) {
+    try {
+      const bytes = fileSizeFormToBytes(size.value, size.unit)
+      Object.assign(size, bytesToFileSizeForm(bytes, unit))
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async function refreshConfig() {
     if (isLoading.value) return
     isLoading.value = true
@@ -64,6 +74,7 @@ export function useSystemConfig() {
       await ConfigService.updateConfig(data)
       useConfigStore().updateConfig(data)
       if (data.admin_token) {
+        saved.value = true
         useAdminStore().logout()
         window.dispatchEvent(new Event('filecodebox:auth:unauthorized'))
         return
@@ -87,6 +98,7 @@ export function useSystemConfig() {
     error,
     saved,
     isDirty,
+    changeSizeUnit,
     refreshConfig,
     submitConfig
   }

@@ -53,7 +53,7 @@ def backup_database(source):
 def normalize_config(raw):
     result = {key: value for key, value in raw.items() if key in DEFAULT_CONFIG}
     for key, upper in (('upload_size', 1_000_000_000), ('storage_limit', 500_000_000_000)):
-        value = result.get(key, DEFAULT_CONFIG[key])
+        value = result.get(key, upper)
         if key == 'storage_limit' and value == 0:
             value = upper
         if type(value) is not int or value <= 0:
@@ -97,8 +97,9 @@ async def migrate():
             await tx.execute_query(f'CREATE INDEX IF NOT EXISTS idx_relay_file_{name} ON filecodes({column})')
         rows = await tx.execute_query_dict("SELECT value FROM keyvalue WHERE key='settings'")
         if rows:
-            raw = json.loads(rows[0]['value'])
-            normalized = normalize_config(raw)
+            value = rows[0]['value']
+            raw = json.loads(value) if value is not None else None
+            normalized = normalize_config({} if raw is None else raw)
             await tx.execute_query("UPDATE keyvalue SET value=? WHERE key='settings'", [json.dumps(normalized)])
         for key in RETIRED_KEYS:
             await tx.execute_query('DELETE FROM keyvalue WHERE key=?', [key])

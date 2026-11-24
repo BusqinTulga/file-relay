@@ -3,10 +3,8 @@ import { computed, ref } from 'vue'
 import type { ConfigState, PublicConfigMeta } from '@/types'
 import {
   DEFAULT_PUBLIC_CONFIG,
-  readNotifyKey,
   readStoredConfig,
   toPublicConfig,
-  writeNotifyKey,
   writeStoredConfig,
   type PublicConfig
 } from '@/utils/config-storage'
@@ -31,23 +29,6 @@ export const useConfigStore = defineStore('config', () => {
     document.title = config.value.name
   }
 
-  const applyRemoteConfig = (nextConfig: Partial<ConfigState>): string | null => {
-    updateConfig(nextConfig)
-
-    const { notify_title: notifyTitle, notify_content: notifyContent } = nextConfig
-    if (!notifyTitle || !notifyContent) {
-      return null
-    }
-
-    const notifyKey = notifyTitle + notifyContent
-    if (readNotifyKey() === notifyKey) {
-      return null
-    }
-
-    writeNotifyKey(notifyKey)
-    return `${notifyTitle}: ${notifyContent}`
-  }
-
   const applyPublicMeta = (nextMeta: PublicConfigMeta | undefined) => {
     if (!nextMeta) return
 
@@ -70,7 +51,6 @@ export const useConfigStore = defineStore('config', () => {
     publicMeta,
     uploadSizeLimit,
     applyPublicMeta,
-    applyRemoteConfig,
     updateConfig,
     reloadStoredConfig
   }

@@ -1,14 +1,17 @@
 """Migration runner coverage: discovery order, registration, idempotency,
-and failure propagation. Runs the REAL migrations (001-009) against an
+and failure propagation. Runs the real migrations against an
 in-memory database — the same code path a deployment upgrade takes.
 """
 import pytest
 from tortoise import Tortoise
 
+from apps.base.config import refresh_settings
+from apps.base.models import KeyValue
 from core.database import execute_migrations
+from core.settings import settings
 from tests.helpers import MEMORY_DB_CONFIG, close_db
 
-EXPECTED = [f"migrations_{i:03d}.py" for i in range(1, 11)]
+EXPECTED = [f"migrations_{i:03d}.py" for i in range(1, 13)]
 
 
 @pytest.fixture
@@ -39,6 +42,43 @@ async def _registered() -> list[str]:
         "SELECT migration_file FROM migrates ORDER BY id"
     )
     return [row[0] for row in rows]
+
+
+@pytest.fixture
+async def database_before_config_migrations(fresh_db):
+    await execute_migrations()
+    connection = Tortoise.get_connection("default")
+    await connection.execute_query("DELETE FROM migrates WHERE migration_file IN (?, ?)", EXPECTED[-2:])
+    return connection
+
+
+@pytest.mark.parametrize("old_limit", [None, 10_485_760, 1_000_000_000])
+async def test_existing_settings_keep_their_effective_limit(database_before_config_migrations, old_limit):
+    config = {"name": "Existing site", "notify_title": "Old title", "notify_content": "Old message"}
+    if old_limit is not None:
+        config["upload_size"] = old_limit
+    await KeyValue.create(key="settings", value=config)
+
+    await execute_migrations()
+
+    assert (await KeyValue.get(key="settings")).value == {
+        "name": "Existing site", "upload_size": old_limit if old_limit is not None else 1_000_000_000
+    }
+
+
+@pytest.mark.parametrize("stored_value", [None, "null"], ids=["sql-null", "json-null"])
+async def test_null_settings_keep_old_default(database_before_config_migrations, stored_value):
+    await KeyValue.create(key="settings", value=None)
+    await database_before_config_migrations.execute_query(
+        "UPDATE keyvalue SET value = ? WHERE key = 'settings'", [stored_value]
+    )
+
+    await execute_migrations()
+    await refresh_settings(force=True)
+
+    assert await _registered() == EXPECTED
+    assert (await KeyValue.get(key="settings")).value == {"upload_size": 1_000_000_000}
+    assert settings.upload_size == 1_000_000_000
 
 
 @pytest.mark.asyncio
@@ -107,17 +147,17 @@ class TestMigrationRunner:
         """迁移执行失败必须向上抛（启动失败可见），不能静默吞掉。"""
         import importlib
 
-        # 构造一个会失败的执行缺口：008 未登记，且其模块 migrate 抛错
+        # Leave two migrations pending so a failure also proves the runner stops.
         conn = Tortoise.get_connection("default")
         await conn.execute_query("DELETE FROM migrates")
-        for name in EXPECTED[:-1]:
+        for name in EXPECTED[:-2]:
             await conn.execute_query(
                 "INSERT INTO migrates (migration_file) VALUES (?)", [name]
             )
         real_import = importlib.import_module
 
         def fake_import(name):
-            if name.endswith("migrations_010"):
+            if name.endswith("migrations_011"):
                 class FakeMod:
                     @staticmethod
                     async def migrate():
@@ -130,4 +170,4 @@ class TestMigrationRunner:
         with pytest.raises(RuntimeError, match="boom"):
             await execute_migrations()
         # 失败的迁移不得登记
-        assert "migrations_010.py" not in await _registered()
+        assert await _registered() == EXPECTED[:-2]

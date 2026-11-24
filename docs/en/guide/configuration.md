@@ -8,7 +8,7 @@ FileCodeBox provides rich configuration options. Prefer the admin panel; directl
 
 FileCodeBox supports two configuration methods:
 
-1. **Admin Panel Configuration** (Recommended): Access `/#/admin` to enter the admin panel and modify settings on the settings page
+1. **Admin Panel Configuration** (Recommended): Access `/admin/dashboard` to enter the admin panel and modify settings on the settings page
 2. **Database Configuration**: Configuration is stored in the `data/filecodebox.db` database
 
 ::: tip Note
@@ -27,15 +27,6 @@ On first startup, the system uses default configuration from `core/settings.py`.
 | `server_host` | string | `0.0.0.0` | Service listening address |
 | `server_port` | int | `12345` | Service listening port |
 | `server_workers` | int | `1` | Worker count; keep one worker for SQLite deployments |
-
-### Notification Settings
-
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `notify_title` | string | `系统通知` | Notification title |
-| `notify_content` | string | Welcome message | Notification content, supports HTML |
-| `page_explain` | string | Legal disclaimer | Footer explanation text |
-| `robots_text` | string | `User-agent: *\nDisallow: /` | robots.txt content |
 
 ## Upload Settings
 
@@ -195,7 +186,7 @@ Suitable for enterprise internal use with large file and chunked upload support:
 ```python
 {
     "name": "Enterprise File Transfer",
-    "upload_size": 1073741824,      # 1GB
+    "upload_size": 5000000000,       # 5GB
     "enable_chunk": 1,              # Enable chunked upload
     "upload_minute": 10,            # 10 minutes
     "upload_count": 100,            # Max 100 uploads

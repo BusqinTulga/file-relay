@@ -32,7 +32,7 @@
 
 ## 有效上传策略与管理接口
 
-`GET /api/v1/config` 返回 `{code, detail: {config, meta}}`；公开 config 包含站点名称、简介、通知、首页管理入口，以及 `upload_size`、`storage_limit`、`open_upload`。单位为整数字节；`meta.version` 为运行版本。公开配置不含管理员凭证、存储凭证或部署参数。首页开始处理每个队列项及重试前重新读取策略，服务端在新建、后续分片和最终发布阶段强制检查。
+`GET /api/v1/config` 返回 `{code, detail: {config, meta}}`；公开 config 包含站点名称、简介、首页管理入口，以及 `upload_size`、`storage_limit`、`open_upload`。单位为整数字节；`meta.version` 为运行版本。公开配置不含管理员凭证、存储凭证或部署参数。首页开始处理每个队列项及重试前重新读取策略，服务端在新建、后续分片和最终发布阶段强制检查。
 
 管理员使用独立 Bearer Token。保留以下 `/admin` 接口：
 
@@ -47,6 +47,6 @@
 | DELETE `/file/delete` | JSON `{id}`，标记待删 |
 | POST `/file/batch-delete` | JSON `{ids}`，最多 100 项，返回 deleted 和逐项 failed |
 | GET `/config/get` | 允许编辑的配置和只读 data_root；密码字段始终为空 |
-| PATCH `/config/update` | 仅允许 name、description、notify_title、notify_content、admin_token、admin_session_expire、show_admin_addr、open_upload、upload_size、storage_limit；其他字段 422 |
+| PATCH `/config/update` | 仅允许 name、description、admin_token、admin_session_expire、show_admin_addr、open_upload、upload_size、storage_limit；其他字段 422 |
 
 文件状态为 waiting、retry、expired、pending、cleanup_failed，筛选还支持 all。修改密码会轮换管理员 JWT 签名密钥，已配对设备不受影响。移除的管理 API 返回 JSON 404，不提供旧协议兼容别名。

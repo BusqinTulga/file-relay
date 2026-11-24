@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Download, Trash2, RefreshCw, ArrowRight } from 'lucide-vue-next'
+import { Download, Trash2, ArrowRight } from 'lucide-vue-next'
 import FileUploadArea from '@/components/common/FileUploadArea.vue'
 import { useRelay } from '@/composables'
+import { formatFileSize, formatSizeLimit } from '@/utils/common'
 const {
   mode,
   session,
@@ -11,7 +12,6 @@ const {
   pendingRequest,
   queue,
   error,
-  refreshState,
   busy,
   policy,
   pair,
@@ -22,17 +22,8 @@ const {
   addFiles,
   retry,
   canRetry,
-  cancel,
-  refresh
+  cancel
 } = useRelay()
-const size = (n: number) =>
-  n < 1000
-    ? `${n} B`
-    : n < 1e6
-      ? `${(n / 1000).toFixed(1)} KB`
-      : n < 1e9
-        ? `${(n / 1e6).toFixed(1)} MB`
-        : `${(n / 1e9).toFixed(2)} GB`
 const time = (n: number) => new Date(n * 1000).toLocaleString()
 </script>
 <template>
@@ -50,12 +41,13 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
     <section v-else-if="mode === 'pair'" class="panel mx-auto max-w-lg p-7 sm:p-10">
       <h2 class="text-xl font-semibold">输入相同口令，即可接力</h2>
       <p class="mb-6 mt-3 text-sm leading-6 opacity-65">
-        在两台设备上输入相同的 1 至 4 位数字。第三台及后续设备需要已加入设备确认。
+        请在两台设备上输入相同的数字
       </p>
       <form @submit.prevent="pair">
-        <label for="passcode" class="text-sm">配对口令</label>
+        <span id="passcode-label" class="text-sm">配对口令</span>
         <input
           id="passcode"
+          aria-labelledby="passcode-label"
           v-model="passcode"
           autofocus
           inputmode="numeric"
@@ -63,10 +55,9 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
           maxlength="4"
           autocomplete="off"
           required
-          class="my-3 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-4 text-center text-3xl tracking-[.5em] outline-none focus:ring-2 focus:ring-zinc-400"
-          placeholder="007"
+          class="my-3 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-4 text-center text-3xl tracking-[.5em] caret-transparent outline-none focus:ring-2 focus:ring-zinc-400"
+          placeholder="0317"
         />
-        <p class="mb-6 text-xs opacity-55">保留前导零，例如 007 与 7 是不同口令。</p>
         <button
           type="submit"
           :disabled="busy"
@@ -120,17 +111,14 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
       <section class="panel mb-5 overflow-hidden" aria-label="上传区域">
         <div class="px-5 py-5 sm:px-8">
           <h2 class="mb-3 text-lg font-semibold">文件发送</h2>
-          <p class="mb-3 text-xs opacity-65" aria-live="polite">{{ policy ? (policy.open_upload ? `单文件上限 ${policy.upload_size / 1_000_000} MB` : '上传已暂停') : '正在读取上传限制，读取成功后才能上传' }}</p>
+          <p class="mb-3 text-xs opacity-65" aria-live="polite">{{ policy ? (policy.open_upload ? `单文件上限 ${formatSizeLimit(policy.upload_size)}` : '上传已暂停') : '正在读取上传限制，读取成功后才能上传' }}</p>
       <FileUploadArea
             class="payload-panel"
-            placeholder="点击或拖放文件到此处上传"
-            :description="policy?.open_upload ? `支持任意格式，单文件上限 ${size(policy.upload_size)}` : '上传暂不可用，请稍后重试'"
+            placeholder="点击或拖放文件到页面任意处上传"
+            :description="policy?.open_upload ? `支持任意格式，单文件上限 ${formatSizeLimit(policy.upload_size)}` : '上传暂不可用，请稍后重试'"
             @file-selected="addFiles([$event])"
             @files-selected="addFiles"
           />
-          <p class="mt-3 text-center text-xs leading-5 text-slate-500 dark:text-zinc-400">
-            点击选择、拖放到页面任意位置或粘贴文件，即可自动上传。
-          </p>
         </div>
         <p class="section-footer px-5 py-2.5 text-center text-xs leading-5 sm:px-8">
           文件最多保留 24 小时，首次完整下载后保留 10 分钟供重试。
@@ -170,21 +158,19 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
         </section>
       </section>
       <section class="panel p-5 sm:p-8" aria-label="下载区域">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 class="font-semibold">
+        <div class="mb-3">
+          <h2 class="flex items-center gap-3 font-semibold">
             <span class="inline-flex items-center gap-2"><Download :size="18" />文件下载</span>
-            <span class="ml-1 text-sm font-normal opacity-50">{{ files.length }}</span>
+            <span
+              class="inline-flex min-w-6 items-center justify-center rounded-full bg-slate-500/10 px-2 py-0.5 text-xs font-medium leading-5 tabular-nums text-slate-500 dark:text-slate-400"
+              :aria-label="`文件数量：${files.length}`"
+            >
+              {{ files.length }}
+            </span>
           </h2>
-          <button class="flex items-center gap-1 text-xs opacity-60" @click="refresh">
-            <RefreshCw :size="13" />{{ refreshState }}
-          </button>
         </div>
         <p v-if="!files.length" class="py-10 text-center text-sm opacity-50">
-          {{
-            refreshState.startsWith('连接失败')
-              ? '暂时无法取得文件，请重试'
-              : '还没有文件，上传后会自动出现在这里。'
-          }}
+          还没有文件，上传后会自动出现在这里。
         </p>
         <article
           v-for="file in files"
@@ -194,7 +180,7 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
           <div class="min-w-0 flex-1 basis-52">
             <h3 class="break-all text-sm font-medium">{{ file.name }}</h3>
             <p class="mt-1 text-xs opacity-55">
-              {{ size(file.size) }} · 上传于 {{ time(file.published) }}
+              {{ formatFileSize(file.size) }} · 上传于 {{ time(file.published) }}
             </p>
             <p class="mt-1 text-xs opacity-55">
               {{ file.first_sent ? '传输完成，将于' : '有效至' }} {{ time(file.expires) }} 清理

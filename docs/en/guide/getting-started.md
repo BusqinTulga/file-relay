@@ -81,7 +81,7 @@ python main.py
 
 4. Admin Panel
    - Open `http://localhost:12345` on first run and complete setup
-   - Visit `http://localhost:12345/#/admin`
+   - Visit `http://localhost:12345/admin/dashboard`
    - Enter the admin password set during setup
    - Enter admin panel
    - View system information, files, activity records, and configuration

@@ -1,7 +1,8 @@
 """Exercise real admin writes and every Relay upload stage, not patched constants."""
 import asyncio
+from types import SimpleNamespace
 import pytest
-from apps.base.models import FileCodes, RelayUpload
+from apps.base.models import FileCodes, KeyValue, RelayUpload
 from apps.relay.uploads import temp_dir, final_path, used_capacity
 from apps.relay.cleanup import sweep
 from tests.test_api_contract import _login
@@ -23,10 +24,10 @@ async def start(client, size, name='test', chunked=True, digest=None):
 
 
 @pytest.mark.parametrize('chunked', [False, True])
-async def test_ten_mb_actual_boundary_and_no_reservation_for_oversize(initialized_client, chunked):
+async def test_exact_legacy_boundary_and_no_reservation_for_oversize(initialized_client, chunked):
     c = initialized_client
     auth = await admin(c)
-    limit = 10_000_000
+    limit = 10_485_760
     await configure(c, {'upload_size': limit}, auth)
     await pair(c)
     public = (await c.get('/api/v1/config')).json()['detail']['config']
@@ -38,7 +39,7 @@ async def test_ten_mb_actual_boundary_and_no_reservation_for_oversize(initialize
         assert result.status_code == 200
     before = await used_capacity()
     result = await start(c, limit+1, chunked=chunked)
-    assert result.status_code == 413 and str(limit) in result.json()['detail']
+    assert result.status_code == 413 and '10.48576 MB' in result.json()['detail']
     assert await used_capacity() == before
     assert await RelayUpload.all().count() == 2
     assert (await start(c, 2**100)).status_code == 413
@@ -47,7 +48,30 @@ async def test_ten_mb_actual_boundary_and_no_reservation_for_oversize(initialize
     assert len((await c.get(f"/api/relay/files/{file['id']}/download")).content) == limit
 
 
-@pytest.mark.parametrize('value', [0, -1, True, '10', 1.5, 1_000_000_001])
+async def test_new_install_accepts_five_gb_and_rejects_larger_uploads(initialized_client, monkeypatch):
+    from apps.relay import uploads
+
+    c = initialized_client
+    monkeypatch.setattr(uploads.shutil, 'disk_usage', lambda _: SimpleNamespace(free=20_000_000_000))
+    assert (await c.get('/api/v1/config')).json()['detail']['config']['upload_size'] == 5_000_000_000
+    await pair(c)
+    assert (await start(c, 5_000_000_000)).status_code == 200
+    assert (await start(c, 5_000_000_001)).status_code == 413
+    assert await used_capacity() == 5_000_000_000
+
+
+@pytest.mark.parametrize('saved_limit, expected', [(None, '5 GB'), (1_000_000_000, '1 GB')])
+async def test_setup_page_shows_effective_limit(client, saved_limit, expected):
+    if saved_limit is not None:
+        await KeyValue.create(key='settings', value={'upload_size': saved_limit})
+
+    response = await client.get('/setup', headers={'Accept': 'text/html'})
+
+    assert response.status_code == 200
+    assert f'当前单文件上限 {expected}，' in response.text
+
+
+@pytest.mark.parametrize('value', [0, -1, True, '10', 1.5, 5_000_000_001])
 async def test_invalid_limits_do_not_mutate_config(initialized_client, value):
     c = initialized_client
     auth = await admin(c)
@@ -151,12 +175,12 @@ async def test_admin_only_retained_api_and_exact_partial_settings(initialized_cl
     auth = await admin(c)
     await configure(c, {'upload_size': 10_485_760}, auth)
     results = await asyncio.gather(c.patch('/admin/config/update', json={'description': 'new'}, headers=auth),
-                                  c.patch('/admin/config/update', json={'notify_title': 'notice'}, headers=auth))
+                                  c.patch('/admin/config/update', json={'show_admin_addr': 1}, headers=auth))
     assert all(r.status_code == 200 for r in results)
     stored = (await c.get('/admin/config/get', headers=auth)).json()['detail']
-    assert stored['upload_size'] == 10_485_760 and stored['description'] == 'new' and stored['notify_title'] == 'notice'
+    assert stored['upload_size'] == 10_485_760 and stored['description'] == 'new' and stored['show_admin_addr'] == 1
     assert not {'jwt_secret', 's3_secret_access_key', 'trusted_proxies', 'server_port'} & stored.keys()
-    for key in ('s3_bucket_name', 'expire_style', 'themes_select', 'server_port'):
+    for key in ('s3_bucket_name', 'expire_style', 'themes_select', 'server_port', 'notify_title', 'notify_content'):
         assert (await c.patch('/admin/config/update', json={key: 'x'}, headers=auth)).status_code == 422
     for path in ('local/lists', 'local/share', 'local/delete', 'file/policy-action', 'file/update',
                  'file/metadata', 'file/view-presets', 'file/preview', 'activities'):
@@ -174,10 +198,14 @@ async def test_file_list_relay_statuses_and_batch_partial_failure(initialized_cl
     assert not {'code', 'relay_group_id', 'session_hash', 'text'} & listing['files'][0].keys()
     await c.get(f"/api/relay/files/{file['id']}/download")
     assert (await c.get('/admin/file/list', params={'status':'retry'}, headers=auth)).json()['detail']['total'] == 1
+    overview = (await c.get('/admin/dashboard', headers=auth)).json()['detail']
+    assert (overview['active_files'], overview['pending_files']) == (1, 0)
     result = await c.post('/admin/file/batch-delete', json={'ids':[file['id'], 999999]}, headers=auth)
     assert result.json()['detail']['deleted'] == [file['id']]
     assert result.json()['detail']['failed'][0]['id'] == 999999
     assert (await c.get('/admin/file/list', params={'status':'pending'}, headers=auth)).json()['detail']['total'] == 1
+    overview = (await c.get('/admin/dashboard', headers=auth)).json()['detail']
+    assert (overview['active_files'], overview['pending_files']) == (0, 1)
 
 
 async def test_password_change_revokes_old_admin_but_not_device(initialized_client):
