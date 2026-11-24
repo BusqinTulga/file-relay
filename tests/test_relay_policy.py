@@ -1,8 +1,12 @@
 """Exercise real admin writes and every Relay upload stage, not patched constants."""
 import asyncio
+from contextlib import closing
+import sqlite3
 from types import SimpleNamespace
 import pytest
-from apps.base.models import FileCodes, KeyValue, RelayUpload
+from tortoise import connections
+from apps.base.models import FileCodes, KeyValue, RelayChunk, RelayUpload
+from apps.relay import config
 from apps.relay.uploads import temp_dir, final_path, used_capacity
 from apps.relay.cleanup import sweep
 from tests.test_api_contract import _login
@@ -168,6 +172,33 @@ async def test_capacity_reduction_preserves_existing_reservation_and_atomic_new_
     results = await asyncio.gather(start(c, 2, name='one'), start(c, 2, name='two'))
     assert sorted(r.status_code for r in results) == [200, 507]
     assert await used_capacity() == 5
+
+
+async def test_capacity_with_more_completed_uploads_than_sqlite_parameters(initialized_client):
+    client = initialized_client
+    auth = await admin(client)
+    await pair(client)
+    _, completed = await upload(client, b'abc')
+    pending = (await start(client, 5, name='pending')).json()
+    await RelayChunk.create(upload_id=completed['id'], index=0, size=3, sha256=sha(b'abc'))
+    await RelayChunk.create(upload_id=pending['id'], index=0, size=1, sha256=sha(b'x'))
+
+    with closing(sqlite3.connect(':memory:')) as sqlite:
+        limit = sqlite.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER)
+    await connections.get('default').execute_query(
+        """WITH RECURSIVE ids(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM ids WHERE n < ?)
+           INSERT INTO relayupload (id, group_id, device_id, session_hash, name, size, sha256, chunk_size,
+                                    state, expires, error)
+           SELECT 'history-' || n, 0, '', '', 'file', 0, '', 1, 'completed', ?, '' FROM ids""",
+        [limit, config.now() + config.UPLOAD_TTL],
+    )
+
+    overview = await client.get('/admin/dashboard', headers=auth)
+    assert overview.status_code == 200
+    assert overview.json()['detail']['occupied_bytes'] == 11
+    await configure(client, {'storage_limit': 12}, auth)
+    assert (await start(client, 1, name='fits')).status_code == 200
+    assert (await start(client, 1, name='over')).status_code == 507
 
 
 async def test_admin_only_retained_api_and_exact_partial_settings(initialized_client):

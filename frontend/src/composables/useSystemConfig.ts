@@ -2,7 +2,6 @@ import { computed, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
 import { useI18n } from 'vue-i18n'
 import { ConfigService } from '@/services'
-import { useConfigStore } from '@/stores/configStore'
 import { useAdminStore } from '@/stores/adminStore'
 import { useAlertStore } from '@/stores/alertStore'
 import { DEFAULT_CONFIG_STATE } from '@/utils/config-storage'
@@ -14,9 +13,11 @@ import {
 } from '@/utils/config-form'
 import { getErrorMessage } from '@/utils/common'
 import type { ConfigState } from '@/types'
+import { usePublicConfigBootstrap } from './usePublicConfigBootstrap'
 export function useSystemConfig() {
   const { locale, t } = useI18n()
   const alertStore = useAlertStore()
+  const { syncPublicConfig } = usePublicConfigBootstrap()
   const config = ref<ConfigState>({ ...DEFAULT_CONFIG_STATE })
   const fileSize = ref(bytesToFileSizeForm(0)),
     capacity = ref(bytesToFileSizeForm(0))
@@ -24,7 +25,6 @@ export function useSystemConfig() {
     isLoading = ref(false),
     loaded = ref(false),
     error = ref('')
-  const snapshot = ref('')
   watch(locale, () => {
     error.value = ''
   })
@@ -38,11 +38,19 @@ export function useSystemConfig() {
       admin_session_expire: adminSessionDays.value * 86400
     }
   }
-  let pendingConfig: ReturnType<typeof payload> | undefined
+  type SettingsPayload = ReturnType<typeof payload>
+  const snapshot = ref<SettingsPayload>()
+  let pendingConfig: SettingsPayload | undefined
+  const changedFields = (data: SettingsPayload): Partial<SettingsPayload> => {
+    const keys = Object.keys(data) as (keyof SettingsPayload)[]
+    return Object.fromEntries(
+      keys.filter((key) => data[key] !== snapshot.value?.[key]).map((key) => [key, data[key]])
+    )
+  }
   const isDirty = computed(() => {
     if (!loaded.value) return false
     try {
-      return JSON.stringify(payload()) !== snapshot.value
+      return Object.keys(changedFields(payload())).length > 0
     } catch {
       return true
     }
@@ -68,8 +76,8 @@ export function useSystemConfig() {
       fileSize.value = bytesToFileSizeForm(config.value.upload_size)
       capacity.value = bytesToFileSizeForm(config.value.storage_limit)
       adminSessionDays.value = config.value.admin_session_expire / 86400
+      snapshot.value = payload()
       loaded.value = true
-      snapshot.value = JSON.stringify(payload())
     } catch (e) {
       error.value = getErrorMessage(e, t('errors.loadSettings'))
     } finally {
@@ -97,17 +105,17 @@ export function useSystemConfig() {
       while (pendingConfig) {
         const data = pendingConfig
         pendingConfig = undefined
-        const submitted = JSON.stringify(data)
-        if (submitted === snapshot.value) continue
+        const changes = changedFields(data)
+        if (!Object.keys(changes).length) continue
 
         const requestLocale = locale.value
         error.value = ''
         try {
-          await ConfigService.updateConfig(data)
-          snapshot.value = submitted
-          useConfigStore().updateConfig(data)
+          await ConfigService.updateConfig(changes)
+          snapshot.value = data
+          await syncPublicConfig()
           alertStore.showAlert(t('simple.saved'), 'success')
-          if (data.admin_token) {
+          if (changes.admin_token) {
             useAdminStore().logout()
             window.dispatchEvent(new Event('filecodebox:auth:unauthorized'))
             return

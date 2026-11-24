@@ -9,7 +9,7 @@ LOCALES = {"zh": "zh-CN", "en": "en-US", "ja": "ja-JP"}
 
 def preferred_locale(request: Request) -> str:
     requested = request.query_params.get("lang")
-    if requested in LOCALES.values():
+    if requested is not None and requested in LOCALES.values():
         return requested
     for header in request.headers.get("accept-language", "").split(","):
         language = header.split(";", 1)[0].strip().lower().split("-", 1)[0]
@@ -102,6 +102,10 @@ _MESSAGES = {
     "分片长度超出声明": (
         "The chunk exceeds its declared length.",
         "チャンクのサイズが指定されたサイズを超えています。",
+    ),
+    "上传等待数据超时，请重试": (
+        "The upload timed out while waiting for data. Try again.",
+        "アップロードデータの受信待ちがタイムアウトしました。もう一度お試しください。",
     ),
     "分片长度或 SHA256 不匹配": (
         "The chunk length or SHA-256 checksum does not match.",

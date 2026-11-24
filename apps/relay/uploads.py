@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
+from tortoise.expressions import Subquery
 from tortoise.functions import Sum
 from tortoise.transactions import in_transaction
 
@@ -38,6 +39,10 @@ async def upload_lock(upload_id):
             del _locks[upload_id]
         else:
             _locks[upload_id] = (lock, count - 1)
+
+
+def upload_in_use(upload_id):
+    return upload_id in _locks
 
 
 def temp_dir(upload_id):
@@ -94,7 +99,7 @@ async def used_capacity():
     published = await FileCodes.all().annotate(total=Sum("size")).values("total")
     pending = await RelayUpload.exclude(state__in=["completed", "cleaned"]).annotate(total=Sum("size")).values("total")
     # Completed sessions can retain duplicate chunks after a failed disk cleanup.
-    completed = await RelayUpload.filter(state="completed").values_list("id", flat=True)
+    completed = Subquery(RelayUpload.filter(state="completed").values("id"))
     residual = await RelayChunk.filter(upload_id__in=completed).annotate(total=Sum("size")).values("total")
     return sum((rows[0]["total"] or 0) if rows else 0 for rows in (published, pending, residual))
 
@@ -174,7 +179,15 @@ async def write_chunk(upload_id, index, request, auth):
         hasher, length = hashlib.sha256(), 0
         try:
             async with aiofiles.open(partial, "wb") as output:
-                async for block in request.stream():
+                stream = aiter(request.stream())
+                while True:
+                    try:
+                        async with asyncio.timeout(config.UPLOAD_IDLE_TIMEOUT):
+                            block = await anext(stream, None)
+                    except TimeoutError as exc:
+                        raise HTTPException(408, "上传等待数据超时，请重试") from exc
+                    if block is None:
+                        break
                     length += len(block)
                     if length > expected:
                         raise HTTPException(422, "分片长度超出声明")

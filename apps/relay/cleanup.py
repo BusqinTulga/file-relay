@@ -4,7 +4,7 @@ import asyncio
 from apps.base.models import DownloadAttempt, FileCodes, PairingRequest, RelayUpload
 from apps.relay import config
 from apps.relay.auth import state_lock
-from apps.relay.uploads import clear_chunks, final_path, upload_lock
+from apps.relay.uploads import clear_chunks, final_path, upload_in_use, upload_lock
 from core.logger import logger
 
 
@@ -35,6 +35,9 @@ async def sweep():
     cancelled = await RelayUpload.filter(state="cancelled").limit(100)
     completed = await RelayUpload.filter(state="completed").exclude(error="").limit(100)
     for item in {u.id: u for u in [*expired, *cancelled, *completed]}.values():
+        # In this worker there is no suspension between this check and acquiring an idle lock.
+        if upload_in_use(item.id):
+            continue
         async with upload_lock(item.id):
             upload = await RelayUpload.get(id=item.id)
             try:

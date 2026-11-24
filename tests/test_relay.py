@@ -13,7 +13,7 @@ from apps.relay import config
 from apps.relay.auth import _pair_limits
 from apps.relay.cleanup import sweep
 from apps.relay.files import download_response
-from apps.relay.uploads import final_path, temp_dir
+from apps.relay.uploads import final_path, temp_dir, upload_lock
 
 
 def sha(data):
@@ -304,6 +304,62 @@ async def test_delete_lease_and_retryable_failure(initialized_client):
     await sweep()
     assert not await FileCodes.filter(id=file['id']).exists()
     assert not final_path(session['id']).exists()
+
+
+async def test_sweep_skips_busy_upload_and_continues_cleanup(initialized_client):
+    client = initialized_client
+    await pair(client)
+    h = await headers(client)
+    file, session = await upload(client)
+    busy = (await client.post('/api/relay/uploads', headers=h, json={
+        'name': 'busy', 'size': 3, 'sha256': sha(b'abc'),
+    })).json()
+    directory = temp_dir(busy['id'])
+    directory.mkdir(parents=True)
+    partial = directory / '0.part'
+    partial.write_bytes(b'a')
+    await RelayUpload.filter(id=busy['id']).update(expires=config.now() - 1)
+
+    async with upload_lock(busy['id']):
+        await asyncio.wait_for(sweep(), timeout=2)
+        assert partial.exists()
+        assert (await RelayUpload.get(id=busy['id'])).state == 'uploading'
+        await FileCodes.filter(id=file['id']).update(relay_expires=config.now() - 1)
+        await asyncio.wait_for(sweep(), timeout=2)
+        assert not final_path(session['id']).exists()
+        assert partial.exists()
+
+    await sweep()
+    assert (await RelayUpload.get(id=busy['id'])).state == 'cleaned'
+    assert not directory.exists()
+
+
+@pytest.mark.parametrize('endpoint', ['content', 'chunks/0'])
+async def test_upload_idle_timeout_keeps_committed_chunk_and_allows_retry(initialized_client, monkeypatch, endpoint):
+    client = initialized_client
+    await pair(client)
+    h = {**await headers(client), 'X-Chunk-SHA256': sha(b'abc'), 'Accept-Language': 'en-US'}
+    upload = (await client.post('/api/relay/uploads', headers=h, json={
+        'name': 'retry', 'size': 3, 'sha256': sha(b'abc'), 'chunked': False,
+    })).json()
+    url = f"/api/relay/uploads/{upload['id']}"
+    assert (await client.put(f'{url}/{endpoint}', content=b'abc', headers=h)).status_code == 200
+
+    async def paused_body():
+        yield b'a'
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(config, 'UPLOAD_IDLE_TIMEOUT', 0.05)
+    timed_out = await asyncio.wait_for(client.put(f'{url}/{endpoint}', content=paused_body(), headers=h), timeout=2)
+    assert timed_out.status_code == 408
+    assert 'timed out' in timed_out.json()['detail']
+    state = (await client.get(url)).json()
+    assert state['state'] == 'uploading' and state['chunks'] == [0]
+    directory = temp_dir(upload['id'])
+    assert not (directory / '0.part').exists()
+    assert (directory / '0').read_bytes() == b'abc'
+    assert (await client.put(f'{url}/{endpoint}', content=b'abc', headers=h)).status_code == 200
+    assert (await client.post(f'{url}/complete', headers=h)).status_code == 200
 
 
 async def test_disconnect_and_slow_send_heartbeat(initialized_client):
