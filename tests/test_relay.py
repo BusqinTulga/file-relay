@@ -405,7 +405,9 @@ async def test_pair_rate_limit_does_not_throttle_lists(initialized_client):
     await pair(a)
     for _ in range(9):
         assert (await pair(a)).status_code == 200
+    counts = {bucket: len(values) for bucket, values in _pair_limits.items()}
     assert (await pair(a)).status_code == 429
+    assert {bucket: len(values) for bucket, values in _pair_limits.items()} == counts
     for _ in range(12):
         assert (await a.get('/api/relay/files')).status_code == 200
 

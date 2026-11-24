@@ -89,8 +89,8 @@ async def initialize_system(
     site_name: str | None = None,
     setup_options: dict | None = None,
 ) -> None:
-    password = str(admin_password or "").strip()
-    if len(password) < MIN_ADMIN_PASSWORD_LENGTH:
+    password = str(admin_password or "")
+    if len(password.strip()) < MIN_ADMIN_PASSWORD_LENGTH:
         raise ValueError(f"管理员密码至少需要 {MIN_ADMIN_PASSWORD_LENGTH} 位")
 
     async with db_startup_lock():

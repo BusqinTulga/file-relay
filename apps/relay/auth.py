@@ -64,19 +64,21 @@ async def csrf(request: Request):
         raise HTTPException(403, "CSRF 校验失败，请刷新页面")
 
 
-_pair_limits: OrderedDict[str, list[float]] = OrderedDict()
+_pair_limits: OrderedDict[str | None, list[float]] = OrderedDict()
 
 
 def rate_limit(request):
     stamp = config.now()
     key = request.client.host if request.client else "unknown"
     # Bounded memory; a global bucket also bounds rotating-IP attempts.
-    for bucket, limit in (("*", 200), (key, 10)):
-        values = _pair_limits.setdefault(bucket, [])
-        values[:] = [t for t in values if t > stamp - 60]
+    updates: dict[str | None, list[float]] = {}
+    for bucket, limit in ((None, 200), (key, 10)):
+        values = [t for t in _pair_limits.get(bucket, []) if t > stamp - 60]
         if len(values) >= limit:
             raise HTTPException(429, "配对操作过于频繁，请稍后重试", headers={"Retry-After": "60"})
-        values.append(stamp)
+        updates[bucket] = [*values, stamp]
+    for bucket, values in updates.items():
+        _pair_limits[bucket] = values
         _pair_limits.move_to_end(bucket)
     while len(_pair_limits) > 4096:
         _pair_limits.popitem(last=False)

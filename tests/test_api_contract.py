@@ -61,10 +61,13 @@ class TestApiContractSnakeCase:
 
         (tmp_path / "index.html").write_text("<html><body>SPA shell</body></html>")
         monkeypatch.setattr(pages, "resolve_theme_root", lambda: tmp_path)
-        for path in ("/admin/dashboard", "/admin/settings/"):
+        for path in ("/", "/admin/dashboard", "/admin/settings/", "/unknown-frontend-path"):
             response = await initialized_client.get(path, headers={"Accept": "text/html"})
             assert response.status_code == 200 and "SPA shell" in response.text
-            assert response.headers["Vary"] == "Accept"
+            assert response.headers["Content-Security-Policy"] == "frame-ancestors 'none'"
+            assert response.headers["X-Frame-Options"] == "DENY"
+            if path.startswith("/admin/"):
+                assert response.headers["Vary"] == "Accept"
 
         response = await initialized_client.get("/admin/dashboard", headers={"Accept": "application/json"})
         assert response.status_code == 401

@@ -44,6 +44,16 @@ async def test_setup_language_survives_validation_and_success(client):
     assert 'href="/?lang=en-US"' in response.text
 
 
+async def test_setup_preserves_admin_password_whitespace(client):
+    password = '  Setup-Test-123  '
+    response = await client.post('/setup', data={'admin_password': password, 'confirm_password': password})
+    assert response.status_code == 200
+
+    response = await client.post('/admin/login', json={'password': password})
+    assert response.status_code == 200
+    assert response.json()['detail']['token']
+
+
 @pytest.mark.parametrize('locale,limit_error,password_error', [
     ('zh-CN', '单文件上限必须大于 0 且不能超过 5 GB', '密码错误'),
     ('en-US', 'The single-file limit must be greater than 0 and no greater than 5 GB.', 'Incorrect password.'),

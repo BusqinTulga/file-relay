@@ -190,7 +190,11 @@ async def index(request=None, exc=None):
     return HTMLResponse(
         content=content,
         media_type="text/html",
-        headers={"Cache-Control": "no-cache"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Content-Security-Policy": "frame-ancestors 'none'",
+            "X-Frame-Options": "DENY",
+        },
     )
 
 @router.get("/robots.txt")
