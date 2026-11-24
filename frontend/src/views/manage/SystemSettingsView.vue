@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSystemConfig } from '@/composables'
-import { useAlertStore } from '@/stores/alertStore'
+import { DEFAULT_PUBLIC_CONFIG } from '@/utils/config-storage'
 import SettingSwitch from '@/components/common/SettingSwitch.vue'
 import SettingNumberInput from '@/components/common/SettingNumberInput.vue'
 const { t } = useI18n()
@@ -14,17 +14,33 @@ const {
   isLoading,
   loaded,
   error,
-  saved,
   isDirty,
   changeSizeUnit,
   refreshConfig,
+  showSaveError,
   submitConfig
 } = useSystemConfig()
-const alertStore = useAlertStore()
 const form = ref<HTMLFormElement | null>(null)
 const passwordDraft = ref('')
-const hasUnsavedChanges = computed(() => isDirty.value || passwordDraft.value !== config.value.admin_token)
-let saveTimer: ReturnType<typeof setTimeout> | undefined
+const siteName = computed({
+  get: () =>
+    config.value.name === DEFAULT_PUBLIC_CONFIG.name ? t('shell.siteName') : config.value.name,
+  set: (name) => {
+    config.value.name = name
+  }
+})
+const siteDescription = computed({
+  get: () =>
+    config.value.description === DEFAULT_PUBLIC_CONFIG.description
+      ? t('shell.siteDescription')
+      : config.value.description,
+  set: (description) => {
+    config.value.description = description
+  }
+})
+const hasUnsavedChanges = computed(
+  () => (loaded.value && isLoading.value) || isDirty.value || passwordDraft.value !== config.value.admin_token
+)
 
 function confirmUnload(event: BeforeUnloadEvent) {
   if (hasUnsavedChanges.value) {
@@ -34,11 +50,33 @@ function confirmUnload(event: BeforeUnloadEvent) {
 }
 
 function saveChanges() {
-  clearTimeout(saveTimer)
-  saveTimer = undefined
-  if (isDirty.value && !isLoading.value && form.value?.reportValidity()) {
-    void submitConfig()
+  if ((!isDirty.value && !isLoading.value) || !form.value) return
+
+  const invalidInput = form.value.querySelector<HTMLInputElement>('input:invalid')
+  if (invalidInput) {
+    if (invalidInput.type === 'number') {
+      showSaveError(t(invalidInput.required ? 'errors.sizePrecision' : 'errors.sessionDaysRange'))
+    } else if (invalidInput.type === 'password') {
+      showSaveError(t('errors.adminPasswordLength'))
+    } else {
+      showSaveError(t('errors.siteNameRequired'))
+    }
+    return
   }
+  void submitConfig()
+}
+
+function saveOnInputBlur(event: FocusEvent) {
+  if (!(event.target instanceof HTMLInputElement)) return
+  if (event.target.type === 'password') config.value.admin_token = passwordDraft.value
+  saveChanges()
+}
+
+function toggleSetting(key: 'show_admin_addr' | 'open_upload') {
+  config.value[key] = config.value[key] === 1 ? 0 : 1
+  const focused = document.activeElement
+  if (focused instanceof HTMLInputElement && form.value?.contains(focused)) return
+  saveChanges()
 }
 
 function changeUnit(size: typeof fileSize.value, event: Event) {
@@ -49,78 +87,56 @@ function changeUnit(size: typeof fileSize.value, event: Event) {
   }
 }
 
-watch(
-  [config, fileSize, capacity, adminSessionDays],
-  () => {
-    if (!loaded.value) return
-    clearTimeout(saveTimer)
-    saveTimer = undefined
-    if (!isDirty.value) {
-      error.value = ''
-      return
-    }
-    saved.value = false
-    error.value = ''
-    saveTimer = setTimeout(saveChanges, 700)
-  },
-  { deep: true }
-)
-watch(
-  saved,
-  (value) => {
-    if (value) alertStore.showAlert(t('simple.saved'), 'success')
-  },
-  { flush: 'sync' }
-)
 watch(hasUnsavedChanges, (dirty) => {
   if (dirty) window.addEventListener('beforeunload', confirmUnload)
   else window.removeEventListener('beforeunload', confirmUnload)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', confirmUnload)
-  if (saveTimer === undefined) return
-  clearTimeout(saveTimer)
-  if (isDirty.value && form.value?.checkValidity()) void submitConfig()
 })
 onMounted(refreshConfig)
 </script>
 <template>
-  <form ref="form" class="admin-content max-w-5xl" @submit.prevent="saveChanges">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <p v-if="hasUnsavedChanges" class="theme-text-muted" role="status">
-        {{ t(isLoading ? 'simple.saving' : 'simple.unsaved') }}
-      </p>
-      <button v-if="error && isDirty" type="submit" class="admin-button" :disabled="isLoading">
-        {{ t('simple.retrySave') }}
-      </button>
-      <button
-        type="button"
-        class="admin-button"
-        :disabled="isLoading || hasUnsavedChanges"
-        @click="refreshConfig"
-      >
-        {{ t('simple.refresh') }}
-      </button>
-    </div>
+  <form
+    ref="form"
+    class="admin-content max-w-5xl"
+    @submit.prevent
+    @input="error = ''"
+    @focusout="saveOnInputBlur"
+  >
+    <p v-if="hasUnsavedChanges" class="theme-text-muted" role="status">
+      {{ t(isLoading ? 'simple.saving' : 'simple.unsaved') }}
+    </p>
     <p v-if="error" role="alert" class="admin-error">{{ error }}</p>
     <p v-if="!loaded && isLoading">{{ t('simple.loading') }}</p>
-    <fieldset v-if="loaded" :disabled="isLoading" class="space-y-6">
+    <fieldset v-if="loaded" class="space-y-6">
       <section class="admin-panel space-y-5">
         <h3 class="text-lg font-semibold">{{ t('simple.site') }}</h3>
-        <label class="admin-label"
-          >{{ t('simple.siteName')
-          }}<input v-model="config.name" required maxlength="80" class="admin-input"
-        /></label>
-        <label class="admin-label"
-          >{{ t('simple.description')
-          }}<input v-model="config.description" maxlength="255" class="admin-input"
-        /></label>
+        <div class="admin-label">
+          <span id="site-name-label">{{ t('simple.siteName') }}</span>
+          <input
+            v-model="siteName"
+            aria-labelledby="site-name-label"
+            required
+            maxlength="80"
+            class="admin-input"
+          />
+        </div>
+        <div class="admin-label">
+          <span id="site-description-label">{{ t('simple.description') }}</span>
+          <input
+            v-model="siteDescription"
+            aria-labelledby="site-description-label"
+            maxlength="255"
+            class="admin-input"
+          />
+        </div>
         <SettingSwitch
           :label="t('simple.adminEntry')"
           :model-value="config.show_admin_addr"
           :enabled-text="t('simple.enabled')"
           :disabled-text="t('simple.hidden')"
-          @toggle="config.show_admin_addr = config.show_admin_addr === 1 ? 0 : 1"
+          @toggle="toggleSetting('show_admin_addr')"
         />
       </section>
       <section class="admin-panel space-y-5">
@@ -130,56 +146,61 @@ onMounted(refreshConfig)
           :model-value="config.open_upload"
           :enabled-text="t('simple.enabled')"
           :disabled-text="t('simple.paused')"
-          @toggle="config.open_upload = config.open_upload === 1 ? 0 : 1"
+          @toggle="toggleSetting('open_upload')"
         />
         <div class="grid gap-5 sm:grid-cols-2">
-          <label class="admin-label"
-            >{{ t('simple.fileLimit') }}
+          <div class="admin-label">
+            <span id="file-limit-label">{{ t('simple.fileLimit') }}</span>
             <div class="flex gap-2">
               <input
                 v-model.number="fileSize.value"
+                aria-labelledby="file-limit-label"
                 type="number"
                 step="any"
                 :min="fileSize.unit === 'MB' ? 0.000001 : 0.000000001"
                 required
                 class="admin-input"
-              /><select
+              />
+              <select
                 :value="fileSize.unit"
+                aria-labelledby="file-limit-label"
                 class="admin-input w-24"
                 @change="changeUnit(fileSize, $event)"
               >
                 <option v-for="unit in ['MB', 'GB']" :key="unit">{{ unit }}</option>
               </select>
-            </div></label
-          >
-          <label class="admin-label"
-            >{{ t('simple.limit') }}
+            </div>
+          </div>
+          <div class="admin-label">
+            <span id="storage-limit-label">{{ t('simple.limit') }}</span>
             <div class="flex gap-2">
               <input
                 v-model.number="capacity.value"
+                aria-labelledby="storage-limit-label"
                 type="number"
                 step="any"
                 :min="capacity.unit === 'MB' ? 0.000001 : 0.000000001"
                 required
                 class="admin-input"
-              /><select
+              />
+              <select
                 :value="capacity.unit"
+                aria-labelledby="storage-limit-label"
                 class="admin-input w-24"
                 @change="changeUnit(capacity, $event)"
               >
                 <option v-for="unit in ['MB', 'GB']" :key="unit">{{ unit }}</option>
               </select>
-            </div></label
-          >
+            </div>
+          </div>
         </div>
-        <p class="theme-text-muted text-sm">{{ t('simple.unitsHint') }}</p>
-        <p class="theme-text-muted text-sm">{{ t('simple.changeHint') }}</p>
       </section>
       <section class="admin-panel space-y-5">
         <h3 class="text-lg font-semibold">{{ t('simple.administrator') }}</h3>
-        <label class="admin-label"
-          >{{ t('simple.password')
-          }}<input
+        <div class="admin-label">
+          <span id="admin-password-label">{{ t('simple.password') }}</span>
+          <input
+            aria-labelledby="admin-password-label"
             type="password"
             autocomplete="new-password"
             minlength="8"
@@ -187,8 +208,8 @@ onMounted(refreshConfig)
             class="admin-input"
             :placeholder="t('simple.passwordHint')"
             v-model="passwordDraft"
-            @change="config.admin_token = passwordDraft"
-        /></label>
+          />
+        </div>
         <SettingNumberInput
           v-model="adminSessionDays"
           :min="1"

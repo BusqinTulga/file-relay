@@ -8,6 +8,9 @@ const transpile = (path) => ts.transpileModule(
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }
 ).outputText
 const outputText = transpile('../src/composables/useRelay.ts')
+const { default: zhCN } = await import(
+  'data:text/javascript;base64,' + Buffer.from(transpile('../src/i18n/locales/zh-CN.ts')).toString('base64')
+)
 const { formatSizeLimit } = await import(
   'data:text/javascript;base64,' + Buffer.from(transpile('../src/utils/common.ts')).toString('base64')
 )
@@ -34,12 +37,21 @@ async function harness(overrides = {}, hash = async () => 'hash') {
   const dependencies = {
     vue: {
       ref: (value) => ({ value }),
+      watch: () => {},
       onMounted: (cb) => {
         mount = cb
       },
       onUnmounted: (cb) => {
         unmount = cb
       }
+    },
+    'vue-i18n': {
+      useI18n: () => ({
+        t: (path, values = {}) => {
+          const message = path.split('.').reduce((group, key) => group[key], zhCN)
+          return message.replace(/\{(\w+)\}/g, (_, key) => values[key])
+        }
+      })
     },
     '@/services': { RelayService: service, RelayError },
     '@/utils/relay-sha256': { hashRelayFile: hash },
@@ -169,7 +181,7 @@ test('re-pair during hashing stops old queue before creating an upload', async (
   release('fullhash')
   await flush()
   assert.equal(starts, 0)
-  assert.equal(flow.queue.value[0].state, '已取消')
+  assert.equal(flow.queue.value[0].state, 'cancelled')
   unmount()
 })
 test('changed browser cookie clears old list before new list arrives', async () => {
@@ -270,7 +282,7 @@ test('remote file limit rejects before hashing and retry uses the raised limit',
   }, async () => { hashes++; return 'hash' })
   flow.addFiles([{ name: 'too-large', size: 10_490_000 }])
   await flush()
-  assert.equal(flow.queue.value[0].state, '失败')
+  assert.equal(flow.queue.value[0].state, 'failed')
   assert.match(flow.queue.value[0].error, /10\.48576 MB/)
   assert.equal(hashes, 0)
   assert.equal(starts, 0)
@@ -288,7 +300,7 @@ test('failed or paused policy stops before hashing without using a fallback', as
   service.policy = async () => { throw new Error('configuration offline') }
   flow.addFiles([{ name: 'small', size: 1 }])
   await flush()
-  assert.equal(flow.queue.value[0].state, '失败')
+  assert.equal(flow.queue.value[0].state, 'failed')
   assert.equal(flow.policy.value, null)
   assert.equal(hashes, 0)
   service.policy = async () => ({ upload_size: 100, storage_limit: 1000, open_upload: 0 })

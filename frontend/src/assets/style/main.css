@@ -146,6 +146,16 @@ body {
     background-color: rgb(var(--color-accent) / 0.08);
     color: rgb(var(--color-text-strong));
   }
+  .header-control {
+    @apply inline-flex h-11 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-xl transition-colors sm:h-12;
+    background: var(--surface-glass-strong);
+    border-color: var(--border-glass);
+    color: rgb(var(--color-text-muted));
+  }
+  .header-control:hover {
+    background: rgb(var(--color-surface-muted));
+    color: rgb(var(--color-text-strong));
+  }
   .theme-brand {
     background-color: rgb(var(--color-accent));
     color: rgb(var(--color-accent-contrast));

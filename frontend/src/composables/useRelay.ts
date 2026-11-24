@@ -1,4 +1,5 @@
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RelayService, RelayError } from '@/services'
 import type { RelayFile, RelaySession, RelayPending, RelayPolicy } from '@/services'
 import { hashRelayFile } from '@/utils/relay-sha256'
@@ -8,7 +9,7 @@ interface QueueItem {
   key: number
   file: File
   progress: number
-  state: string
+  state: 'queued' | 'hashing' | 'uploading' | 'publishing' | 'complete' | 'cancelled' | 'failed'
   error: string
   generation: number
   uploadID?: string
@@ -16,6 +17,7 @@ interface QueueItem {
   cancelling?: boolean
 }
 export function useRelay() {
+  const { locale, t } = useI18n()
   const mode = ref<'loading' | 'pair' | 'waiting' | 'relay'>('loading')
   const session = ref<RelaySession | null>(null)
   const passcode = ref('')
@@ -33,13 +35,19 @@ export function useRelay() {
     polling = false,
     failures = 0
   let timer: ReturnType<typeof setTimeout> | undefined
+  watch(locale, () => {
+    error.value = ''
+    for (const item of queue.value) {
+      item.error = item.state === 'failed' ? t('relay.uploadFailed') : ''
+    }
+  })
 
   const stopQueue = () => {
     for (const item of queue.value) {
-      if (['等待上传', '校验文件', '上传中', '发布中'].includes(item.state)) {
+      if (['queued', 'hashing', 'uploading', 'publishing'].includes(item.state)) {
         item.controller?.abort()
-        item.state = '已取消'
-        item.error = '配对发生变化，请在当前列表重新选择文件'
+        item.state = 'cancelled'
+        item.error = t('relay.pairChanged')
       }
     }
   }
@@ -51,7 +59,7 @@ export function useRelay() {
     pendingRequest.value = null
   }
   const handleError = (e: unknown) => {
-    error.value = e instanceof Error ? e.message : '请求失败，请重试'
+    error.value = e instanceof Error ? e.message : t('relay.requestFailed')
   }
   async function sync(restorePending = true) {
     if (stopped || polling || busy.value || document.hidden || mode.value === 'pair') return
@@ -82,8 +90,8 @@ export function useRelay() {
           pendingRequest.value = null
           error.value =
             pending.status === 'rejected'
-              ? '加入申请已被拒绝，可重新输入口令'
-              : '加入申请已过期，请重新申请'
+              ? t('relay.joinRejected')
+              : t('relay.joinExpired')
           mode.value = 'pair'
         }
         failures = 0
@@ -147,7 +155,7 @@ export function useRelay() {
   async function pair() {
     if (busy.value) return
     if (!/^[0-9]{1,4}$/.test(passcode.value)) {
-      error.value = '请输入 1 至 4 位数字，保留前导零'
+      error.value = t('relay.invalidCode')
       return
     }
     busy.value = true
@@ -213,7 +221,7 @@ export function useRelay() {
     queueRunning.value = true
     try {
       while (mode.value === 'relay') {
-        const item = queue.value.find((q) => q.state === '等待上传')
+        const item = queue.value.find((q) => q.state === 'queued')
         if (!item) break
         const epoch = generation
         const auth = session.value
@@ -222,18 +230,18 @@ export function useRelay() {
         item.controller = controller
         const check = () => {
           controller.signal.throwIfAborted()
-          if (epoch !== generation) throw new DOMException('配对已改变', 'AbortError')
+          if (epoch !== generation) throw new DOMException(t('relay.pairChanged'), 'AbortError')
         }
         try {
           policy.value = null
           policy.value = await RelayService.policy()
           check()
-          if (!policy.value.open_upload) throw new Error('上传已暂停，请稍后重试')
+          if (!policy.value.open_upload) throw new Error(t('relay.uploadPaused'))
           if (item.file.size > policy.value.upload_size)
             throw new Error(
-              `文件大小超过单文件上限（${formatSizeLimit(policy.value.upload_size)}）`
+              t('relay.tooLarge', { limit: formatSizeLimit(policy.value.upload_size) })
             )
-          item.state = '校验文件'
+          item.state = 'hashing'
           item.error = ''
           const sha = await hashRelayFile(item.file, controller.signal, (p) => {
             item.progress = Math.round(p * 20)
@@ -248,7 +256,7 @@ export function useRelay() {
           )
           item.uploadID = upload.id
           check()
-          item.state = '上传中'
+          item.state = 'uploading'
           const count = Math.max(1, Math.ceil(item.file.size / upload.chunk_size))
           for (let index = 0; index < count && upload.state === 'uploading'; index++) {
             check()
@@ -276,16 +284,16 @@ export function useRelay() {
             )
           }
           check()
-          item.state = '发布中'
+          item.state = 'publishing'
           item.progress = 95
           await RelayService.complete(upload.id, controller.signal, auth)
           check()
-          item.state = '已完成'
+          item.state = 'complete'
           item.progress = 100
           await sync()
         } catch (e) {
-          item.state = controller.signal.aborted || epoch !== generation ? '已取消' : '失败'
-          item.error = e instanceof Error ? e.message : '上传失败'
+          item.state = controller.signal.aborted || epoch !== generation ? 'cancelled' : 'failed'
+          item.error = e instanceof Error ? e.message : t('relay.uploadFailed')
           if (e instanceof RelayError && (e.status === 413 || e.status === 403)) {
             policy.value = null
             try {
@@ -311,7 +319,7 @@ export function useRelay() {
         key: ++serial,
         file,
         progress: 0,
-        state: '等待上传',
+        state: 'queued',
         error: '',
         generation
       })
@@ -319,18 +327,18 @@ export function useRelay() {
   }
   function canRetry(item: QueueItem) {
     return item.generation === generation && !item.controller && !item.cancelling &&
-      ['失败', '已取消'].includes(item.state)
+      ['failed', 'cancelled'].includes(item.state)
   }
   function retry(item: QueueItem) {
     if (mode.value !== 'relay' || !canRetry(item)) return
-    item.state = '等待上传'
+    item.state = 'queued'
     item.progress = 0
     item.error = ''
     void runQueue()
   }
   async function cancel(item: QueueItem) {
     item.controller?.abort()
-    item.state = '已取消'
+    item.state = 'cancelled'
     const auth = session.value
     if (!item.uploadID || item.generation !== generation || !auth?.paired) return
     item.cancelling = true

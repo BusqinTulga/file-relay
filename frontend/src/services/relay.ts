@@ -1,3 +1,4 @@
+import i18n, { getCurrentLocale } from '@/i18n'
 export interface RelayPolicy {
   upload_size: number
   storage_limit: number
@@ -45,9 +46,10 @@ export const RelayService = {
   async policy(): Promise<RelayPolicy> {
     const response = await fetch('/api/v1/config', {
       cache: 'no-store',
+      headers: { 'Accept-Language': getCurrentLocale() },
       credentials: 'same-origin'
     })
-    if (!response.ok) throw new RelayError(response.status, '无法读取上传限制，请重试')
+    if (!response.ok) throw new RelayError(response.status, i18n.global.t('relay.policyFailed'))
     const data = (await response.json()).detail?.config
     if (
       !data ||
@@ -55,7 +57,7 @@ export const RelayService = {
       data.upload_size <= 0 ||
       ![0, 1].includes(data.open_upload)
     )
-      throw new Error('上传配置无效，请重试')
+      throw new Error(i18n.global.t('relay.invalidPolicy'))
     return data
   },
   async request<T>(
@@ -71,6 +73,7 @@ export const RelayService = {
       cache: 'no-store',
       signal,
       headers: {
+        'Accept-Language': getCurrentLocale(),
         'Content-Type': 'application/json',
         'X-Relay-CSRF': auth?.csrf ?? '',
         'X-Relay-Session': auth?.session_id ?? ''
@@ -81,7 +84,7 @@ export const RelayService = {
       const data = await response.json().catch(() => null)
       throw new RelayError(
         response.status,
-        typeof data?.detail === 'string' ? data.detail : `请求失败（HTTP ${response.status}），请重试`
+        typeof data?.detail === 'string' ? data.detail : i18n.global.t('relay.httpError', { status: response.status })
       )
     }
     return (await response.json()) as T
@@ -142,7 +145,7 @@ export const RelayService = {
       const xhr = new XMLHttpRequest()
       const abort = () => xhr.abort()
       if (signal.aborted) {
-        reject(new DOMException('已取消', 'AbortError'))
+        reject(new DOMException(i18n.global.t('relay.cancelled'), 'AbortError'))
         return
       }
       xhr.open(
@@ -150,6 +153,7 @@ export const RelayService = {
         ordinary ? `/api/relay/uploads/${id}/content` : `/api/relay/uploads/${id}/chunks/${index}`
       )
       xhr.setRequestHeader('X-Relay-CSRF', auth.csrf)
+      xhr.setRequestHeader('Accept-Language', getCurrentLocale())
       xhr.setRequestHeader('X-Relay-Session', auth.session_id || '')
       xhr.setRequestHeader('X-Chunk-SHA256', hash)
       xhr.setRequestHeader('Content-Type', 'application/octet-stream')
@@ -159,7 +163,7 @@ export const RelayService = {
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) resolve()
         else {
-          let message = '上传失败，请重试'
+          let message = i18n.global.t('relay.uploadFailed')
           try {
             const data = JSON.parse(xhr.responseText)
             if (typeof data.detail === 'string') message = data.detail
@@ -169,8 +173,8 @@ export const RelayService = {
           reject(new RelayError(xhr.status, message))
         }
       }
-      xhr.onerror = () => reject(new Error('网络中断，请重试'))
-      xhr.onabort = () => reject(new DOMException('已取消', 'AbortError'))
+      xhr.onerror = () => reject(new Error(i18n.global.t('relay.networkError')))
+      xhr.onabort = () => reject(new DOMException(i18n.global.t('relay.cancelled'), 'AbortError'))
       xhr.onloadend = () => signal.removeEventListener('abort', abort)
       signal.addEventListener('abort', abort, { once: true })
       xhr.send(data)

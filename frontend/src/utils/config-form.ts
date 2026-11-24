@@ -1,4 +1,5 @@
 export type FileSizeUnit = 'MB' | 'GB'
+export class InvalidFileSizeError extends Error {}
 const powers = { MB: 6, GB: 9 }
 export function bytesToFileSizeForm(
   bytes: number,
@@ -10,7 +11,7 @@ export function fileSizeFormToBytes(value: number, unit: FileSizeUnit): number {
   // Work with decimal digits so untouched legacy byte values survive a round trip.
   const match = String(value).match(/^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i)
   const fail = () => {
-    throw new Error('请输入有效正数，MB 最多 6 位小数，GB 最多 9 位小数。')
+    throw new InvalidFileSizeError()
   }
   if (!match) return fail()
   const fraction = match[2] || ''

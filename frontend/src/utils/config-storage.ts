@@ -10,7 +10,7 @@ export type PublicConfig = Pick<
   | 'open_upload'
 >
 export const DEFAULT_PUBLIC_CONFIG: PublicConfig = {
-  name: 'FileRelay／文件接力',
+  name: 'FileRelay／文件快传',
   description: '在你的设备之间，轻松传递文件',
   show_admin_addr: 0,
   upload_size: 0,
@@ -26,10 +26,13 @@ export function toPublicConfig(
   config: Partial<ConfigState> | null | undefined
 ): Partial<PublicConfig> {
   if (!config) return {}
+  const name = ['FileRelay／文件接力', 'FileRelay・文件接力'].includes(config.name ?? '')
+    ? DEFAULT_PUBLIC_CONFIG.name
+    : config.name
   return Object.fromEntries(
     Object.keys(DEFAULT_PUBLIC_CONFIG)
       .filter((key) => config[key as keyof ConfigState] !== undefined)
-      .map((key) => [key, config[key as keyof ConfigState]])
+      .map((key) => [key, key === 'name' ? name : config[key as keyof ConfigState]])
   )
 }
 export function readStoredConfig<T extends object = Partial<ConfigState>>(): T | null {

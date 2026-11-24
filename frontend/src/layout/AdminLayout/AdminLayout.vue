@@ -17,7 +17,7 @@
         <RouterLink
           to="/"
           class="flex min-w-0 items-center gap-2 font-sans"
-          aria-label="FileRelay 文件接力首页"
+          :aria-label="t('shell.home')"
         >
           <span
             class="theme-surface-strong theme-text-strong flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border shadow-sm"
@@ -26,10 +26,10 @@
           </span>
           <span class="min-w-0">
             <span class="theme-text-strong block text-sm font-semibold tracking-tight"
-              >{{ configStore.config.name }}</span
+              >{{ configStore.siteName }}</span
             >
             <span class="theme-text-muted mt-0.5 block text-[10px] leading-4"
-              >{{ configStore.config.description }}</span
+              >{{ configStore.siteDescription }}</span
             >
           </span>
         </RouterLink>
@@ -74,7 +74,7 @@
         <div class="flex h-16 items-center gap-3 px-4">
           <button
             type="button"
-            aria-label="Open navigation menu"
+            :aria-label="t('shell.navigation')"
             @click="toggleSidebar"
             class="theme-icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-lg lg:hidden"
           >
@@ -112,15 +112,17 @@
               </template>
               <span class="hidden sm:inline">{{ action.label }}</span>
             </BaseButton>
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
 
       <!-- Content -->
       <main
-        class="theme-page min-h-0 flex-1 overflow-y-auto transition-colors duration-300 custom-scrollbar"
+        class="theme-page flex min-h-0 flex-1 flex-col overflow-y-auto transition-colors duration-300 custom-scrollbar"
       >
         <router-view />
+        <SiteFooter />
       </main>
     </div>
   </div>
@@ -143,6 +145,8 @@ import { useConfigStore } from '@/stores/configStore'
 import { ROUTE_NAMES, ROUTES } from '@/constants'
 import { useAdminSession } from '@/composables'
 import BaseButton from '@/components/common/BaseButton.vue'
+import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
+import SiteFooter from '@/components/common/SiteFooter.vue'
 import { provideAdminHeaderActions } from '@/composables/useAdminHeaderActions'
 
 interface MenuItem {
@@ -158,7 +162,7 @@ const route = useRoute()
 const { verifySession, logout } = useAdminSession()
 const { t } = useI18n()
 const headerActions = provideAdminHeaderActions()
-const menuItems: MenuItem[] = [
+const menuItems = computed<MenuItem[]>(() => [
   {
     id: ROUTE_NAMES.DASHBOARD,
     name: t('admin.dashboard.title'),
@@ -177,9 +181,9 @@ const menuItems: MenuItem[] = [
     icon: CogIcon,
     redirect: ROUTES.SETTINGS
   }
-]
+])
 const currentPageTitle = computed(
-  () => menuItems.find((item) => item.id === route.name)?.name ?? ''
+  () => menuItems.value.find((item) => item.id === route.name)?.name ?? ''
 )
 
 const isSidebarOpen = ref(true)

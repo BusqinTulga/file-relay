@@ -1,13 +1,10 @@
 <template>
   <div ref="switcherRef" class="relative">
     <button
+      type="button"
+      class="header-control gap-2 px-3 text-sm sm:px-4"
+      :aria-expanded="isDropdownOpen"
       @click="toggleDropdown"
-      :class="[
-        'flex items-center gap-2 rounded-full border px-3 py-2 text-sm shadow-sm backdrop-blur-xl transition-all duration-300 hover:scale-105 active:scale-95',
-        isDarkMode
-          ? 'border-zinc-700 bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100'
-          : 'border-slate-200/50 bg-white/80 text-slate-500 hover:text-slate-700'
-      ]"
     >
       <GlobeIcon class="w-4 h-4" />
       <span class="text-sm font-medium">{{ currentLanguage.name }}</span>
@@ -48,6 +45,7 @@
                   ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
                   : 'text-slate-600 hover:bg-slate-50'
             ]"
+            :lang="language.code"
           >
             {{ language.name }}
           </button>

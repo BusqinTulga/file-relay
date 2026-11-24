@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
 from starlette.datastructures import MutableHeaders
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import tortoise_exception_handlers
@@ -28,12 +29,13 @@ from apps.base.pages import (
     not_found_handler,
     router as pages_router,
 )
-from apps.base.setup_wizard import build_setup_page, is_setup_path, setup_response, wants_html_response
+from apps.base.setup_wizard import build_setup_page, is_setup_path, setup_locale, setup_response, wants_html_response
 from apps.relay.auth import router as relay_auth
 from apps.relay.uploads import router as relay_uploads
 from apps.relay.files import router as relay_files
 from apps.relay.cleanup import cleanup_loop
 from core.database import db_startup_lock, init_db
+from core.error_i18n import localize_error, preferred_locale
 from core.logger import get_log_level_name, is_access_log_enabled, logger
 from core.settings import settings
 from core.version import APP_VERSION
@@ -97,6 +99,20 @@ app = FastAPI(
     exception_handlers=tortoise_exception_handlers(),
 )
 
+
+@app.exception_handler(StarletteHTTPException)
+async def localized_http_exception(request: Request, exc: StarletteHTTPException):
+    if isinstance(exc.detail, str):
+        exc = StarletteHTTPException(
+            status_code=exc.status_code,
+            detail=localize_error(exc.detail, preferred_locale(request), exc.status_code),
+            headers=exc.headers,
+        )
+    response = await http_exception_handler(request, exc)
+    response.headers.add_vary_header("Accept-Language")
+    return response
+
+
 # Direct browser visits to these Vue routes need the SPA shell. The dashboard
 # path is also a JSON API endpoint, so only HTML navigations are intercepted.
 FRONTEND_HISTORY_PATHS = frozenset({
@@ -132,22 +148,24 @@ class RequestMiddleware:
         if any(path == prefix or path.startswith(prefix + "/") for prefix in (
             "/share", "/chunk", "/presign", "/api/presign", "/mcp"
         )):
-            response = JSONResponse(status_code=410, content={"detail": "旧公开接口已关闭，请使用 FileRelay 配对首页"})
+            detail = localize_error("旧公开接口已关闭，请使用 FileRelay 配对首页", preferred_locale(request), 410)
+            response = JSONResponse(status_code=410, content={"detail": detail})
             await response(scope, receive, send)
             return
         if not is_runtime_initialized() and not is_setup_path(path):
             if is_frontend_navigation or (
                 not path.startswith(("/api/", "/admin/")) and wants_html_response(request)
             ):
-                response = setup_response(build_setup_page())
+                response = setup_response(build_setup_page(locale=setup_locale(request)))
             else:
+                detail = localize_error("系统未初始化，请先完成初始化", preferred_locale(request), 428)
                 response = JSONResponse(
                     status_code=428,
                     headers={"Cache-Control": "no-store"},
                     content={
                         "code": 428,
-                        "message": "系统未初始化，请先完成初始化",
-                        "msg": "系统未初始化，请先完成初始化",
+                        "message": detail,
+                        "msg": detail,
                         "detail": {"setup": "/setup"},
                     },
                 )
@@ -168,7 +186,7 @@ class RequestMiddleware:
             try:
                 response = await render_index(request)
             except HTTPException as exc:
-                response = await http_exception_handler(request, exc)
+                response = await localized_http_exception(request, exc)
             await response(scope, receive, send_with_headers)
             return
 

@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { Download, Trash2, ArrowRight } from 'lucide-vue-next'
 import FileUploadArea from '@/components/common/FileUploadArea.vue'
 import { useRelay } from '@/composables'
 import { formatFileSize, formatSizeLimit } from '@/utils/common'
+const { t, locale } = useI18n()
 const {
   mode,
   session,
@@ -24,10 +26,10 @@ const {
   canRetry,
   cancel
 } = useRelay()
-const time = (n: number) => new Date(n * 1000).toLocaleString()
+const time = (n: number) => new Date(n * 1000).toLocaleString(locale.value)
 </script>
 <template>
-  <main class="relay mx-auto max-w-4xl px-4 pb-12 pt-4 font-sans sm:px-8">
+  <main class="relay mx-auto w-full max-w-4xl px-4 py-4 font-sans sm:px-8">
     <p
       v-if="error"
       role="alert"
@@ -36,20 +38,19 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
       {{ error }}
     </p>
     <section v-if="mode === 'loading'" class="panel p-8" aria-live="polite">
-      正在恢复设备记忆…
+      {{ t('relay.loading') }}
     </section>
     <section v-else-if="mode === 'pair'" class="panel mx-auto max-w-lg p-7 sm:p-10">
-      <h2 class="text-xl font-semibold">输入相同口令，即可接力</h2>
+      <h2 class="text-xl font-semibold">{{ t('relay.pairTitle') }}</h2>
       <p class="mb-6 mt-3 text-sm leading-6 opacity-65">
-        请在两台设备上输入相同的数字
+        {{ t('relay.pairHint') }}
       </p>
-      <form @submit.prevent="pair">
-        <span id="passcode-label" class="text-sm">配对口令</span>
+      <form novalidate @submit.prevent="pair">
+        <span id="passcode-label" class="text-sm">{{ t('relay.passcode') }}</span>
         <input
           id="passcode"
           aria-labelledby="passcode-label"
           v-model="passcode"
-          autofocus
           inputmode="numeric"
           pattern="[0-9]{1,4}"
           maxlength="4"
@@ -63,7 +64,7 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
           :disabled="busy"
           class="primary flex w-full items-center justify-center gap-2"
         >
-          {{ busy ? '正在配对…' : '开始接力' }}<ArrowRight :size="18" />
+          {{ t(busy ? 'relay.pairing' : 'relay.start') }}<ArrowRight :size="18" />
         </button>
       </form>
       <button
@@ -72,80 +73,86 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
         class="mt-5 text-sm text-zinc-700 dark:text-zinc-300"
         @click="resume"
       >
-        返回当前配对
+        {{ t('relay.resume') }}
       </button>
     </section>
     <section v-else-if="mode === 'waiting'" class="panel mx-auto max-w-lg p-8" aria-live="polite">
-      <h2 class="text-xl font-semibold">等待已有设备确认</h2>
+      <h2 class="text-xl font-semibold">{{ t('relay.waitingTitle') }}</h2>
       <p class="my-4 text-sm leading-6 opacity-65">
-        请在已配对的任意设备上同意本次加入。申请 10 分钟后过期，批准前无法访问目标文件。
+        {{ t('relay.waitingHint') }}
       </p>
       <p v-if="pendingRequest" class="mb-4 text-sm">
-        申请 {{ pendingRequest.request_id.slice(0, 8) }} · {{ time(pendingRequest.expires) }} 前有效
+        {{ t('relay.requestExpires', { id: pendingRequest.request_id.slice(0, 8), time: time(pendingRequest.expires) }) }}
       </p>
-      <button class="secondary" @click="repair">重新输入口令</button>
+      <button class="secondary" @click="repair">{{ t('relay.repair') }}</button>
     </section>
     <template v-else>
       <section class="panel mb-5 flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <span class="text-sm opacity-60">当前口令</span
+          <span class="text-sm opacity-60">{{ t('relay.currentCode') }}</span
           ><strong class="ml-3 text-2xl tracking-widest">{{ session?.passcode }}</strong>
-          <p class="mt-1 text-xs opacity-55">浏览器已记住配对</p>
+          <p class="mt-1 text-xs opacity-55">{{ t('relay.pairRemembered') }}</p>
         </div>
-        <button class="secondary text-sm" @click="repair">重新输入口令</button>
+        <button class="secondary text-sm" @click="repair">{{ t('relay.repair') }}</button>
       </section>
       <section v-if="requests.length" class="panel mb-5 p-5" aria-live="polite">
-        <h2 class="mb-3 font-semibold">新设备请求加入</h2>
+        <h2 class="mb-3 font-semibold">{{ t('relay.joinRequests') }}</h2>
         <div
           v-for="request in requests"
           :key="request.id"
           class="flex flex-wrap items-center gap-3 border-t border-slate-400/15 py-3 text-sm"
         >
           <span class="flex-1"
-            >申请 {{ request.id.slice(0, 8) }} · {{ time(request.expires) }} 前有效</span
+            >{{ t('relay.requestExpires', { id: request.id.slice(0, 8), time: time(request.expires) }) }}</span
           >
-          <button class="primary" @click="decide(request.id, true)">同意</button
-          ><button class="secondary" @click="decide(request.id, false)">拒绝</button>
+          <button class="primary" @click="decide(request.id, true)">{{ t('relay.approve') }}</button
+          ><button class="secondary" @click="decide(request.id, false)">{{ t('relay.reject') }}</button>
         </div>
       </section>
-      <section class="panel mb-5 overflow-hidden" aria-label="上传区域">
+      <section class="panel mb-5 overflow-hidden" :aria-label="t('relay.uploadRegion')">
         <div class="px-5 py-5 sm:px-8">
-          <h2 class="mb-3 text-lg font-semibold">文件发送</h2>
-          <p class="mb-3 text-xs opacity-65" aria-live="polite">{{ policy ? (policy.open_upload ? `单文件上限 ${formatSizeLimit(policy.upload_size)}` : '上传已暂停') : '正在读取上传限制，读取成功后才能上传' }}</p>
-      <FileUploadArea
+          <h2 class="mb-3 text-lg font-semibold">{{ t('relay.uploadTitle') }}</h2>
+          <p class="mb-3 text-xs opacity-65" aria-live="polite">{{
+            policy
+              ? policy.open_upload
+                ? t('relay.fileLimit', { limit: formatSizeLimit(policy.upload_size) })
+                : t('relay.uploadPaused')
+              : t('relay.loadingPolicy')
+          }}</p>
+          <FileUploadArea
             class="payload-panel"
-            placeholder="点击或拖放文件到页面任意处上传"
-            :description="policy?.open_upload ? `支持任意格式，单文件上限 ${formatSizeLimit(policy.upload_size)}` : '上传暂不可用，请稍后重试'"
+            :placeholder="t('relay.dropFiles')"
+            :description="policy?.open_upload ? t('relay.uploadFormats', { limit: formatSizeLimit(policy.upload_size) }) : t('relay.uploadUnavailable')"
             @file-selected="addFiles([$event])"
             @files-selected="addFiles"
           />
         </div>
         <p class="section-footer px-5 py-2.5 text-center text-xs leading-5 sm:px-8">
-          文件最多保留 24 小时，首次完整下载后保留 10 分钟供重试。
+          {{ t('relay.retention') }}
         </p>
         <section
           v-if="queue.length"
           class="border-t border-zinc-200/60 p-5 dark:border-zinc-800"
           aria-live="polite"
         >
-          <h2 class="mb-3 font-semibold">上传队列</h2>
+          <h2 class="mb-3 font-semibold">{{ t('relay.queue') }}</h2>
           <div v-for="item in queue" :key="item.key" class="border-t border-slate-400/15 py-4">
             <div class="flex items-center gap-3">
               <span class="min-w-0 flex-1 break-all text-sm">{{ item.file.name }}</span
-              ><span class="text-xs opacity-60">{{ item.state }} {{ item.progress }}%</span>
+              ><span class="text-xs opacity-60">{{ t('relay.' + item.state) }} {{ item.progress }}%</span>
               <button
                 v-if="canRetry(item)"
                 class="text-sm text-zinc-700 dark:text-zinc-300"
                 @click="retry(item)"
               >
-                重试
+                {{ t('send.uploadArea.retry') }}
               </button>
               <button
-                v-else-if="['等待上传', '校验文件', '上传中', '发布中'].includes(item.state)"
+                v-else-if="['queued', 'hashing', 'uploading', 'publishing'].includes(item.state)"
                 class="text-sm opacity-60"
                 @click="cancel(item)"
               >
-                取消
+                {{ t('relay.stop') }}
               </button>
             </div>
             <progress
@@ -157,20 +164,20 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
           </div>
         </section>
       </section>
-      <section class="panel p-5 sm:p-8" aria-label="下载区域">
+      <section class="panel p-5 sm:p-8" :aria-label="t('relay.downloadRegion')">
         <div class="mb-3">
           <h2 class="flex items-center gap-3 font-semibold">
-            <span class="inline-flex items-center gap-2"><Download :size="18" />文件下载</span>
+            <span class="inline-flex items-center gap-2"><Download :size="18" />{{ t('relay.downloadTitle') }}</span>
             <span
               class="inline-flex min-w-6 items-center justify-center rounded-full bg-slate-500/10 px-2 py-0.5 text-xs font-medium leading-5 tabular-nums text-slate-500 dark:text-slate-400"
-              :aria-label="`文件数量：${files.length}`"
+              :aria-label="t('relay.fileCount', { count: files.length })"
             >
               {{ files.length }}
             </span>
           </h2>
         </div>
         <p v-if="!files.length" class="py-10 text-center text-sm opacity-50">
-          还没有文件，上传后会自动出现在这里。
+          {{ t('relay.empty') }}
         </p>
         <article
           v-for="file in files"
@@ -180,20 +187,20 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
           <div class="min-w-0 flex-1 basis-52">
             <h3 class="break-all text-sm font-medium">{{ file.name }}</h3>
             <p class="mt-1 text-xs opacity-55">
-              {{ formatFileSize(file.size) }} · 上传于 {{ time(file.published) }}
+              {{ formatFileSize(file.size) }} · {{ t('relay.publishedAt', { time: time(file.published) }) }}
             </p>
             <p class="mt-1 text-xs opacity-55">
-              {{ file.first_sent ? '传输完成，将于' : '有效至' }} {{ time(file.expires) }} 清理
+              {{ t(file.first_sent ? 'relay.cleanupAt' : 'relay.availableUntil', { time: time(file.expires) }) }}
             </p>
           </div>
           <a
-            :href="`/api/relay/files/${file.id}/download`"
+            :href="`/api/relay/files/${file.id}/download?lang=${locale}`"
             class="secondary inline-flex items-center gap-2 text-sm"
-            ><Download :size="16" />下载</a
+            ><Download :size="16" />{{ t('simple.download') }}</a
           >
           <button
             class="rounded-lg p-2 opacity-60 hover:text-red-500"
-            :aria-label="`删除 ${file.name}`"
+            :aria-label="t('relay.deleteFile', { name: file.name })"
             @click="remove(file.id)"
           >
             <Trash2 :size="17" />
@@ -201,7 +208,6 @@ const time = (n: number) => new Date(n * 1000).toLocaleString()
         </article>
       </section>
     </template>
-    <footer class="mt-8 text-center text-xs opacity-40">FileRelay · 文件接力</footer>
   </main>
 </template>
 <style scoped>

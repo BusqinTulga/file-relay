@@ -1,7 +1,7 @@
 <template>
   <div
     :class="[
-      'min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200 relative overflow-hidden',
+      'flex flex-1 items-center justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200 relative overflow-hidden',
       isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
     ]"
   >
@@ -38,12 +38,12 @@
             isDarkMode ? 'text-white' : 'text-gray-900'
           ]"
         >
-          登录
+          {{ $t('login.title') }}
         </h2>
       </div>
-      <form class="mt-8 space-y-6" @submit.prevent="submitLogin">
+      <form class="mt-8 space-y-6" novalidate @submit.prevent="submitLogin">
         <input type="hidden" name="remember" value="true" />
-        <label for="username" class="sr-only">用户名</label>
+        <label for="username" class="sr-only">{{ $t('login.username') }}</label>
         <input
           id="username"
           name="username"
@@ -56,7 +56,7 @@
         />
         <div class="rounded-md shadow-sm -space-y-px">
           <div>
-            <label for="password" class="sr-only">密码</label>
+            <label for="password" class="sr-only">{{ $t('login.password') }}</label>
             <input
               id="password"
               name="password"
@@ -70,7 +70,7 @@
                   ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400 hover:border-gray-500 focus:ring-zinc-500 focus:border-zinc-500'
                   : 'bg-white/50 border-gray-300 text-gray-900 hover:border-gray-400'
               ]"
-              placeholder="密码"
+              :placeholder="$t('login.password')"
             />
           </div>
         </div>
@@ -87,7 +87,7 @@
             :disabled="isLoading"
           >
             <span class="absolute left-0 inset-y-0 flex items-center pl-3"> </span>
-            {{ isLoading ? '登录中...' : '登录' }}
+            {{ $t(isLoading ? 'login.pending' : 'login.title') }}
           </button>
         </div>
       </form>

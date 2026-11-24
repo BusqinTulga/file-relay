@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ChevronDownIcon } from 'lucide-vue-next'
 import { useAdminFiles } from '@/composables'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { formatFileSize } from '@/utils/common'
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const {
   files,
   total,
@@ -19,7 +20,7 @@ const {
 } = useAdminFiles()
 const statuses = ['all', 'waiting', 'retry', 'expired', 'pending', 'cleanup_failed']
 const time = (value: number | null) =>
-  value === null ? '—' : new Date(value * 1000).toLocaleString()
+  value === null ? '—' : new Date(value * 1000).toLocaleString(locale.value)
 function search() {
   params.page = 1
   void refresh()
@@ -30,21 +31,37 @@ onMounted(refresh)
 <template>
   <div class="admin-content">
     <form class="admin-panel flex flex-wrap items-end gap-3" @submit.prevent="search">
-      <label class="admin-label min-w-40 flex-1"
-        >{{ t('simple.filename')
-        }}<input v-model="params.keyword" maxlength="255" class="admin-input" type="search"
-      /></label>
-      <label class="admin-label"
-        >{{ t('simple.status')
-        }}<select v-model="params.status" class="admin-input" @change="search">
-          <option v-for="status in statuses" :key="status" :value="status">
-            {{ t('simple.status_' + status) }}
-          </option>
-        </select></label
-      >
-      <button class="admin-button" :disabled="isLoading">{{ t('simple.search') }}</button
-      ><button type="button" class="admin-button" :disabled="isLoading" @click="refresh">
-        {{ t('simple.refresh') }}
+      <div class="admin-label min-w-40 flex-1">
+        <span id="file-search-label">{{ t('simple.filename') }}</span>
+        <input
+          v-model="params.keyword"
+          aria-labelledby="file-search-label"
+          maxlength="255"
+          class="admin-input h-11"
+          type="search"
+        />
+      </div>
+      <div class="admin-label">
+        <span id="file-status-label">{{ t('simple.status') }}</span>
+        <span class="relative block">
+          <select
+            v-model="params.status"
+            aria-labelledby="file-status-label"
+            class="admin-input status-select h-11 appearance-none"
+            @change="search"
+          >
+            <option v-for="status in statuses" :key="status" :value="status">
+              {{ t('simple.status_' + status) }}
+            </option>
+          </select>
+          <ChevronDownIcon
+            class="theme-text-muted pointer-events-none absolute bottom-3.5 right-3 h-4 w-4"
+            aria-hidden="true"
+          />
+        </span>
+      </div>
+      <button type="submit" class="admin-button h-11" :disabled="isLoading">
+        {{ t('simple.search') }}
       </button>
     </form>
     <p v-if="error" class="admin-error" role="alert">{{ error }}</p>
@@ -134,9 +151,15 @@ onMounted(refresh)
         </div>
         <div v-if="detail.cleanup_error">
           <dt>{{ t('simple.cleanupError') }}</dt>
-          <dd class="admin-error">{{ detail.cleanup_error }}</dd>
+          <dd class="admin-error">{{ locale === 'zh-CN' ? detail.cleanup_error : t('errors.cleanupFailed') }}</dd>
         </div>
       </dl></BaseModal
     >
   </div>
 </template>
+
+<style scoped>
+.status-select {
+  padding-inline-end: 2.25rem;
+}
+</style>

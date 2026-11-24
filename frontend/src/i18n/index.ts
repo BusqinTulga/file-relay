@@ -1,9 +1,10 @@
 import { createI18n } from 'vue-i18n'
 import zhCN from './locales/zh-CN'
 import enUS from './locales/en-US'
+import jaJP from './locales/ja-JP'
 import { readStoredLocale, writeStoredLocale } from '@/utils/preference-storage'
 
-type SupportedLocale = 'zh-CN' | 'en-US'
+type SupportedLocale = 'zh-CN' | 'en-US' | 'ja-JP'
 
 const normalizeLocale = (locale: string | null | undefined): SupportedLocale | null => {
   if (!locale) return null
@@ -11,6 +12,7 @@ const normalizeLocale = (locale: string | null | undefined): SupportedLocale | n
   const normalized = locale.trim().toLowerCase()
   if (normalized === 'zh' || normalized.startsWith('zh-')) return 'zh-CN'
   if (normalized === 'en' || normalized.startsWith('en-')) return 'en-US'
+  if (normalized === 'ja' || normalized.startsWith('ja-')) return 'ja-JP'
 
   return null
 }
@@ -23,12 +25,19 @@ const getDefaultLocale = (): SupportedLocale => {
     return savedLocale
   }
 
+  const setupLocale = normalizeLocale(new URLSearchParams(window.location.search).get('lang'))
+  if (setupLocale) {
+    writeStoredLocale(setupLocale)
+    return setupLocale
+  }
+
   return normalizeLocale(navigator.language) ?? 'en-US'
 }
 
 const messages = {
   'zh-CN': zhCN,
-  'en-US': enUS
+  'en-US': enUS,
+  'ja-JP': jaJP
 }
 
 const defaultLocale = getDefaultLocale()
@@ -63,5 +72,6 @@ export const getCurrentLocale = () => {
 // 导出可用语言列表
 export const availableLocales = [
   { code: 'zh-CN', name: '中文' },
-  { code: 'en-US', name: 'English' }
+  { code: 'en-US', name: 'English' },
+  { code: 'ja-JP', name: '日本語' }
 ]

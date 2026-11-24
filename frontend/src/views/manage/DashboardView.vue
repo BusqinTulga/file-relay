@@ -2,11 +2,9 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDashboardStats } from '@/composables'
-import { useConfigStore } from '@/stores/configStore'
 import { formatFileSize, formatSizeLimit } from '@/utils/common'
 const { t } = useI18n()
 const { data, error, isLoading, refresh } = useDashboardStats()
-const config = useConfigStore()
 const uptime = computed(() =>
   data.value?.sys_start
     ? Math.max(0, Math.floor((Date.now() - data.value.sys_start) / 3_600_000))
@@ -16,12 +14,7 @@ onMounted(refresh)
 </script>
 <template>
   <div class="admin-content">
-    <div class="flex items-center justify-between gap-4">
-      <p class="theme-text-muted">{{ t('simple.overviewHint') }}</p>
-      <button class="admin-button" :disabled="isLoading" @click="refresh">
-        {{ t('simple.refresh') }}
-      </button>
-    </div>
+    <p class="theme-text-muted">{{ t('simple.overviewHint') }}</p>
     <p v-if="error" role="alert" class="admin-error">{{ error }}</p>
     <p v-if="isLoading && !data">{{ t('simple.loading') }}</p>
     <template v-if="data">
@@ -98,7 +91,6 @@ onMounted(refresh)
           </div>
         </dl>
       </section>
-      <p class="theme-text-muted text-xs">FileRelay · {{ config.appVersion || '—' }}</p>
     </template>
   </div>
 </template>

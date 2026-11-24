@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'FileRelay／文件接力',
-  description: '设备间临时文件接力与管理',
+  title: 'FileRelay／文件快传',
+  description: '设备间临时文件传输与管理',
   lang: 'zh-CN',
   cleanUrls: true,
   lastUpdated: true,

@@ -1,4 +1,4 @@
-# FileRelay／文件接力：运行与验收
+# FileRelay／文件快传：运行与验收
 
 本版依据原始实施计划及 [后台精简计划](../admin-simplification-plan.md) 开发，支持全新安装与现有 FileRelay 数据库升级。只支持本地存储、SQLite 和单 worker。沿用 FileCodeBox 的管理员认证、设置和主题基础；公开首页使用同一页面上传和接收，不使用提取码取件。
 

@@ -22,7 +22,6 @@ type ErrorWithResponse = {
   response?: {
     data?: ApiErrorPayload
   }
-  message?: string
 }
 
 const getReadableMessage = (value: unknown): string => {
@@ -59,7 +58,6 @@ export function getErrorMessage(error: unknown, fallback: string): string {
   return (
     getReadableMessage(responseData?.detail) ||
     getReadableMessage(responseData?.message) ||
-    errorWithResponse.message ||
     fallback
   )
 }

@@ -1,14 +1,16 @@
 <template>
   <div class="space-y-2">
-    <label
+    <span
+      :id="labelId"
       class="block text-sm font-medium"
       :class="[isDarkMode ? 'text-zinc-300' : 'text-zinc-700']"
     >
       {{ label }}
-    </label>
+    </span>
     <div class="flex items-center space-x-2">
       <input
         type="number"
+        :aria-labelledby="labelId"
         :value="modelValue"
         :min="min"
         :max="max"
@@ -27,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { inject, useId } from 'vue'
 
 const props = defineProps<{
   label: string
@@ -38,6 +40,7 @@ const props = defineProps<{
 }>()
 
 const isDarkMode = inject('isDarkMode')
+const labelId = useId()
 
 const emit = defineEmits<{
   'update:modelValue': [value: number]

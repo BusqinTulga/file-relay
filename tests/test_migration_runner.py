@@ -11,7 +11,7 @@ from core.database import execute_migrations
 from core.settings import settings
 from tests.helpers import MEMORY_DB_CONFIG, close_db
 
-EXPECTED = [f"migrations_{i:03d}.py" for i in range(1, 13)]
+EXPECTED = [f"migrations_{i:03d}.py" for i in range(1, 14)]
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ async def _registered() -> list[str]:
 async def database_before_config_migrations(fresh_db):
     await execute_migrations()
     connection = Tortoise.get_connection("default")
-    await connection.execute_query("DELETE FROM migrates WHERE migration_file IN (?, ?)", EXPECTED[-2:])
+    await connection.execute_query("DELETE FROM migrates WHERE migration_file IN (?, ?, ?)", EXPECTED[-3:])
     return connection
 
 
@@ -64,6 +64,21 @@ async def test_existing_settings_keep_their_effective_limit(database_before_conf
     assert (await KeyValue.get(key="settings")).value == {
         "name": "Existing site", "upload_size": old_limit if old_limit is not None else 1_000_000_000
     }
+
+
+@pytest.mark.parametrize("old_name", ["FileRelay／文件接力", "FileRelay・文件接力"])
+async def test_existing_default_site_name_is_renamed(fresh_db, old_name):
+    await execute_migrations()
+    connection = Tortoise.get_connection("default")
+    await connection.execute_query("DELETE FROM migrates WHERE migration_file = ?", [EXPECTED[-1]])
+    await KeyValue.create(key="settings", value={"name": old_name, "upload_size": 10_485_760})
+
+    await execute_migrations()
+    await refresh_settings(force=True)
+
+    assert await _registered() == EXPECTED
+    assert (await KeyValue.get(key="settings")).value == {"name": "FileRelay／文件快传", "upload_size": 10_485_760}
+    assert settings.name == "FileRelay／文件快传"
 
 
 @pytest.mark.parametrize("stored_value", [None, "null"], ids=["sql-null", "json-null"])
@@ -147,10 +162,10 @@ class TestMigrationRunner:
         """迁移执行失败必须向上抛（启动失败可见），不能静默吞掉。"""
         import importlib
 
-        # Leave two migrations pending so a failure also proves the runner stops.
+        # Leave later migrations pending so a failure also proves the runner stops.
         conn = Tortoise.get_connection("default")
         await conn.execute_query("DELETE FROM migrates")
-        for name in EXPECTED[:-2]:
+        for name in EXPECTED[:-3]:
             await conn.execute_query(
                 "INSERT INTO migrates (migration_file) VALUES (?)", [name]
             )
@@ -170,4 +185,4 @@ class TestMigrationRunner:
         with pytest.raises(RuntimeError, match="boom"):
             await execute_migrations()
         # 失败的迁移不得登记
-        assert await _registered() == EXPECTED[:-2]
+        assert await _registered() == EXPECTED[:-3]

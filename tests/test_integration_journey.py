@@ -21,4 +21,46 @@ async def test_fresh_install_exposes_setup_in_json_api_response(client):
         response = await client.get(path)
         assert response.status_code == 428
         assert response.json()['detail']['setup'] == '/setup'
-    assert '初始化 FileRelay' in (await client.get('/')).text
+    setup_page = (await client.get('/')).text
+    assert '初始化文件快传' in setup_page
+    assert 'FileRelay／文件快传' in setup_page
+
+
+async def test_setup_language_survives_validation_and_success(client):
+    response = await client.get('/', headers={'Accept-Language': 'ja-JP,en-US;q=0.9'})
+    assert '<html lang="ja-JP">' in response.text
+    response = await client.get('/setup?lang=en-US', headers={'Accept-Language': 'ja-JP'})
+    assert '<title>Set up FileRelay</title>' in response.text
+
+    form = {'lang': 'en-US', 'admin_password': 'Setup-Test-123', 'confirm_password': 'different'}
+    response = await client.post('/setup', data=form)
+    assert response.status_code == 400
+    assert 'The administrator passwords do not match.' in response.text
+
+    form['confirm_password'] = form['admin_password']
+    response = await client.post('/setup', data=form)
+    assert response.status_code == 200
+    assert '<title>Setup complete</title>' in response.text
+    assert 'href="/?lang=en-US"' in response.text
+
+
+@pytest.mark.parametrize('locale,limit_error,password_error', [
+    ('zh-CN', '单文件上限必须大于 0 且不能超过 5 GB', '密码错误'),
+    ('en-US', 'The single-file limit must be greater than 0 and no greater than 5 GB.', 'Incorrect password.'),
+    ('ja-JP', '1ファイルの上限は0より大きく、5 GB 以下にしてください。', 'パスワードが正しくありません。'),
+])
+async def test_api_localizes_errors_for_selected_language(initialized_client, locale, limit_error, password_error):
+    token = await _login(initialized_client)
+    response = await initialized_client.patch(
+        '/admin/config/update',
+        json={'upload_size': 6_000_000_000},
+        headers={'Authorization': f'Bearer {token}', 'Accept-Language': locale},
+    )
+    assert response.status_code == 422
+    assert response.json()['detail'] == limit_error
+
+    response = await initialized_client.post(
+        '/admin/login', json={'password': 'incorrect'}, headers={'Accept-Language': locale},
+    )
+    assert response.status_code == 401
+    assert response.json()['detail'] == password_error

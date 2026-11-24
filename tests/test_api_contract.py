@@ -69,7 +69,7 @@ class TestApiContractSnakeCase:
         response = await initialized_client.get("/admin/dashboard", headers={"Accept": "application/json"})
         assert response.status_code == 401
         assert response.headers["Content-Type"] == "application/json"
-        assert response.headers["Vary"] == "Accept"
+        assert set(response.headers["Vary"].split(", ")) == {"Accept", "Accept-Language"}
 
     async def test_admin_file_list(self, initialized_client):
         token = await _login(initialized_client)

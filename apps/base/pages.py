@@ -10,14 +10,17 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 
 from apps.base.config import initialize_system, is_runtime_initialized
 from apps.base.setup_wizard import (
+    SETUP_TEXT,
     build_public_config,
     build_public_meta,
     build_setup_page,
     build_setup_success_page,
     parse_setup_options,
     read_setup_payload,
+    setup_locale,
     setup_response,
 )
+from core.error_i18n import localize_error, preferred_locale
 from core.response import APIResponse
 from core.settings import BASE_DIR, settings
 from core.version import APP_VERSION
@@ -27,10 +30,10 @@ router = APIRouter()
 
 @router.get("/setup", include_in_schema=False)
 @router.get("/setup/", include_in_schema=False)
-async def setup_page():
+async def setup_page(request: Request):
     if is_runtime_initialized():
         return RedirectResponse(url="/", status_code=303)
-    return setup_response(build_setup_page())
+    return setup_response(build_setup_page(locale=setup_locale(request)))
 
 
 @router.post("/setup", include_in_schema=False)
@@ -40,12 +43,13 @@ async def setup_submit(request: Request):
         return RedirectResponse(url="/", status_code=303)
 
     data = await read_setup_payload(request)
+    locale = setup_locale(request, data.get("lang"))
     admin_password = str(data.get("admin_password") or "")
     confirm_password = str(data.get("confirm_password") or "")
     site_name = str(data.get("site_name") or "")
 
     if admin_password != confirm_password:
-        return setup_response(build_setup_page("两次输入的管理员密码不一致", data), 400)
+        return setup_response(build_setup_page(SETUP_TEXT[locale]["mismatch"], data, locale=locale), 400)
 
     try:
         setup_options = parse_setup_options(data)
@@ -55,11 +59,12 @@ async def setup_submit(request: Request):
             setup_options=setup_options,
         )
     except ValueError as exc:
-        return setup_response(build_setup_page(str(exc), data), 400)
+        detail = localize_error(str(exc), locale, 400)
+        return setup_response(build_setup_page(detail, data, locale=locale), 400)
 
     if "application/json" in request.headers.get("accept", ""):
         return APIResponse(detail={"ok": True, "admin": "/admin/dashboard"})
-    return setup_response(build_setup_success_page())
+    return setup_response(build_setup_success_page(locale))
 
 def resolve_theme_root():
     return (BASE_DIR / "themes" / "2024").resolve()
@@ -140,9 +145,14 @@ async def not_found_handler(request, exc=None):
     （负路径测试抓到的存量 bug）。浏览器（Accept 含 text/html）仍拿到
     主题首页做 SPA 兜底；API 客户端拿到 JSON 404。
     """
+    locale = preferred_locale(request) if request is not None else "zh-CN"
+    original_detail = getattr(exc, "detail", "")
+    detail = original_detail if locale != "zh-CN" and isinstance(original_detail, str) else "资源不存在"
+    message = "Not Found" if locale == "zh-CN" else localize_error("资源不存在", locale, 404)
     json_404 = JSONResponse(
         status_code=404,
-        content={"code": 404, "message": "Not Found", "detail": "资源不存在"},
+        content={"code": 404, "message": message, "detail": localize_error(detail, locale, 404)},
+        headers={"Vary": "Accept-Language"},
     )
     if request is not None and not request.url.path.startswith(("/api/", "/admin/", "/share", "/chunk", "/presign", "/mcp")) and request.method in {"GET", "HEAD"} and "text/html" in (
         request.headers.get("accept", "")

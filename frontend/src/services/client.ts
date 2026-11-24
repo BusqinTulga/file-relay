@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { API_STATUS_CODES, TIME_CONSTANTS } from '@/constants'
+import { getCurrentLocale } from '@/i18n'
 import type { ApiErrorPayload } from '@/types'
 import { clearStoredToken, hasValidStoredAdminSession, readStoredToken } from '@/utils/auth-storage'
 
@@ -27,6 +28,7 @@ const apiClient = axios.create(clientOptions)
 export const rawApiClient = axios.create(clientOptions)
 
 const attachAuthToken = (config: InternalAxiosRequestConfig) => {
+  config.headers.set('Accept-Language', getCurrentLocale())
   if (hasValidStoredAdminSession()) {
     const token = readStoredToken()
     config.headers.Authorization = `Bearer ${token}`

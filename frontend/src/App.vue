@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, RouterView } from 'vue-router'
 import { LogInIcon, ShieldCheckIcon, SendIcon } from 'lucide-vue-next'
@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 import ThemeToggle from './components/common/ThemeToggle.vue'
 import LanguageSwitcher from './components/common/LanguageSwitcher.vue'
 import AlertComponent from '@/components/common/AlertComponent.vue'
+import SiteFooter from '@/components/common/SiteFooter.vue'
 import { useAdminSession, useAppShell } from '@/composables'
 import { ROUTES } from '@/constants'
 import { useConfigStore } from '@/stores/configStore'
@@ -32,6 +33,8 @@ const adminEntryLabel = computed(() =>
   t(adminStore.isAuthenticated ? 'admin.session.loggedIn' : 'admin.session.loggedOut')
 )
 
+watch(() => configStore.siteName, (name) => { document.title = name }, { immediate: true })
+
 onMounted(() => {
   if (adminStore.hasToken) void verifySession()
 })
@@ -41,9 +44,9 @@ onMounted(() => {
   <div :class="['app-container', isDarkMode ? 'dark' : 'light']">
     <header
       v-if="!route.meta.requiresAuth"
-      class="app-header relative z-[60] flex flex-wrap items-center justify-between gap-3 px-4 py-4 font-sans sm:px-6 sm:py-6"
+      class="app-header relative z-[60] flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-4 font-sans sm:px-6 sm:py-6"
     >
-      <RouterLink to="/" class="flex items-center gap-3" aria-label="FileRelay 文件接力首页">
+      <RouterLink to="/" class="flex items-center gap-3" :aria-label="t('shell.home')">
         <span
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border sm:h-12 sm:w-12"
           :class="
@@ -56,25 +59,16 @@ onMounted(() => {
         </span>
         <span>
           <span class="block text-base font-semibold tracking-tight sm:text-lg"
-            >{{ config.name }}</span
+            >{{ configStore.siteName }}</span
           >
-          <span class="theme-text-muted mt-0.5 block text-xs">{{ config.description }}</span>
+          <span class="theme-text-muted mt-0.5 block text-xs">{{ configStore.siteDescription }}</span>
         </span>
       </RouterLink>
       <div v-if="showGlobalControls" class="ml-auto flex items-center gap-2 sm:gap-3">
         <RouterLink
           v-if="showAdminAddress"
           :to="ROUTES.ADMIN"
-          class="rounded-full border p-2.5 shadow-sm backdrop-blur-xl transition-all duration-300 hover:scale-105 active:scale-95 sm:p-3"
-          :class="
-            adminStore.isAuthenticated
-              ? isDarkMode
-                ? 'border-emerald-400/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-              : isDarkMode
-                ? 'border-white/10 bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700'
-                : 'border-slate-200/50 bg-white/80 text-slate-500 hover:text-slate-700'
-          "
+          class="header-control aspect-square"
           :aria-label="adminEntryLabel"
           :title="adminEntryLabel"
         >
@@ -94,6 +88,7 @@ onMounted(() => {
       </transition>
     </RouterView>
 
+    <SiteFooter v-if="!route.meta.requiresAuth" />
     <AlertComponent />
   </div>
 </template>
@@ -109,6 +104,9 @@ onMounted(() => {
 }
 .app-container {
   min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   transition: background-color 0.5s ease;
 }
