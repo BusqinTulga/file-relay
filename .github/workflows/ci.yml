@@ -80,5 +80,5 @@ jobs:
       - name: Validate Compose and image
         run: |
           docker compose config --quiet
-          docker build -t filerelay:ci .
-          python scripts/verify_relay_container.py filerelay:ci
+          docker build -t file-relay:ci .
+          python scripts/verify_relay_container.py file-relay:ci

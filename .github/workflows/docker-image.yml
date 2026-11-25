@@ -10,7 +10,7 @@ on:
         type: string
 
 env:
-  REGISTRY_IMAGE: ${{ secrets.DOCKER_USERNAME }}/filerelay
+  REGISTRY_IMAGE: ${{ secrets.DOCKER_USERNAME }}/file-relay
 
 jobs:
   buildx:

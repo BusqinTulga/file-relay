@@ -1,8 +1,10 @@
+name: filerelay
+
 services:
   filerelay:
-    container_name: filerelay
+    container_name: file-relay
     build: .
-    image: filerelay:local
+    image: file-relay:local
     volumes:
       - relay-data:/app/data
     restart: unless-stopped

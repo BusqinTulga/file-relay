@@ -94,4 +94,4 @@ assert Path('/app/data/backups/before-schema-010.db').is_file()
 
 
 if __name__ == '__main__':
-    verify(sys.argv[1] if len(sys.argv) > 1 else 'filerelay:verification')
+    verify(sys.argv[1] if len(sys.argv) > 1 else 'file-relay:verification')

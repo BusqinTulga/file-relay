@@ -29,6 +29,8 @@ docker compose up -d
 
 Compose 从当前仓库构建前后端，没有拉取上游主题或运行上游业务镜像。数据卷 `relay-data` 同时保存数据库与文件；不要执行 `docker compose down -v`，该命令会销毁数据卷。单纯 `docker compose down`、`up -d --build` 或重建容器不会删除卷。
 
+默认 Compose 项目名为 `filerelay`，对应现有的 `filerelay_relay-data` 数据卷，容器名为 `file-relay`。如果之前使用了自定义项目名，升级时继续用原来的项目名，以便挂载原数据卷。
+
 仅在本机 HTTP 测试时：
 
 ```sh
@@ -96,8 +98,8 @@ pnpm build
 cd ..
 .venv/bin/pytest -q
 docker compose config --quiet
-docker build -t filerelay:verification .
-.venv/bin/python scripts/verify_relay_container.py filerelay:verification
+docker build -t file-relay:verification .
+.venv/bin/python scripts/verify_relay_container.py file-relay:verification
 ```
 
 后端测试必须允许绑定本机临时端口。测试包在应用导入前创建独立临时根，数据库和写入文件不会使用仓库 `data/`。真实进程测试另外设置临时根并运行完整 lifespan 和磁盘迁移，验证重复启动、凭证/倒计时持久化、TCP 断连和备份恢复。镜像验证脚本创建专属随机命名容器和数据卷，结束后只删除自己创建的容器和卷。
