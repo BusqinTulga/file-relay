@@ -22,7 +22,7 @@ def sha(data):
 
 async def headers(client):
     session = (await client.get('/api/relay/session')).json()
-    return {'Origin': 'http://test', 'X-Relay-CSRF': session['csrf']}
+    return {'Origin': str(client.base_url).rstrip('/'), 'X-Relay-CSRF': session['csrf']}
 
 
 async def pair(client, code='007'):
@@ -118,6 +118,52 @@ async def test_csrf_origins_and_admin_not_device(initialized_client):
         assert name in a.cookies
     r = await a.get('/api/relay/session')
     assert 'no-store' in r.headers['cache-control']
+
+
+@pytest.mark.parametrize('scheme,allow_http,secure', [
+    ('http', None, True),
+    ('http', 'false', True),
+    ('http', 'true', False),
+    ('https', 'true', True),
+])
+async def test_production_http_cookie_policy(initialized_client, monkeypatch, scheme, allow_http, secure):
+    monkeypatch.setenv('APP_ENV', 'production')
+    if allow_http is None:
+        monkeypatch.delenv('FILERELAY_ALLOW_HTTP', raising=False)
+    else:
+        monkeypatch.setenv('FILERELAY_ALLOW_HTTP', allow_http)
+
+    client = initialized_client
+    origin = f'{scheme}://192.168.1.20:12345'
+    client.base_url = httpx.URL(origin)
+    response = await client.get('/api/relay/session')
+    attributes = response.headers['set-cookie'].lower().split('; ')
+    assert ('secure' in attributes) is secure
+    assert {'httponly', 'samesite=strict'} <= set(attributes)
+
+    valid_headers = {'Origin': origin, 'X-Relay-CSRF': response.json()['csrf']}
+    url = '/api/relay/pair'
+    payload = {'passcode': '007'}
+    if scheme == 'http' and not secure:
+        for invalid_headers in (
+            {'Origin': origin},
+            {**valid_headers, 'X-Relay-CSRF': 'invalid'},
+            {**valid_headers, 'Origin': 'http://other.test'},
+        ):
+            assert (await client.post(url, json=payload, headers=invalid_headers)).status_code == 403
+
+    response = await client.post(url, json=payload, headers=valid_headers)
+    if scheme == 'http' and secure:
+        assert response.status_code == 403
+        return
+
+    assert response.status_code == 200, response.text
+    device_cookie = next(value for value in response.headers.get_list('set-cookie') if value.startswith('relay_device='))
+    assert ('secure' in device_cookie.lower().split('; ')) is secure
+    assert (await client.get('/api/relay/session')).json()['paired']
+    if scheme == 'http':
+        file, _ = await upload(client)
+        assert (await client.get(f"/api/relay/files/{file['id']}/download")).content == b'hello'
 
 
 async def test_repair_migrates_only_owned_valid_files_preserving_times(initialized_client):

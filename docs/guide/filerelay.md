@@ -39,7 +39,9 @@ APP_ENV=development docker compose up -d --build
 
 公网运行保留默认 `APP_ENV=production`，必须由 HTTPS 访问。反向代理保留 Host，传递实际协议 `X-Forwarded-Proto`，并将 `FORWARDED_ALLOW_IPS` 设置为真实代理的 IP 或网段。不要为了省事设置为 `*`。部署者配置 NAS 挂载、CPU 架构、域名、TLS、代理上传体积和超时；这些值没有写死在项目中。支持 Docker 为 NAS 的架构构建镜像，当前本机验证架构见 [验证记录](../implementation-status.md)。
 
-默认端口 12345，默认数据根 `/app/data`。`FILERELAY_DATA_ROOT` 可覆盖数据根；`WORKERS=1` 固定为首版运行约束，不能通过增加 worker 扩容。`APP_ENV` 决定 Cookie 的 Secure 属性；`LOG_LEVEL`、`ACCESS_LOG`、`FORWARDED_ALLOW_IPS` 和 `TIMEOUT_KEEP_ALIVE` 沿用运行配置。浏览器凭证只存 Cookie，服务端只存凭证 SHA256，不设置应用层 30/90 天强制过期；Cookie 仍受浏览器的保存策略限制。
+在可信内网用 `http://服务器IP:12345` 访问时，可在 Compose 同目录的 `.env` 中加入 `FILERELAY_ALLOW_HTTP=true`，再执行 `docker compose up -d --build`。该选项默认关闭。开启后，生产模式允许通过 HTTP 发送配对 Cookie，HTTPS 请求仍使用 Secure Cookie，CSRF 仍校验来源和令牌。HTTP 会明文传输凭证和文件，应通过防火墙将端口限制在可信内网。
+
+默认端口 12345，默认数据根 `/app/data`。`FILERELAY_DATA_ROOT` 可覆盖数据根；`WORKERS=1` 固定为首版运行约束，不能通过增加 worker 扩容。`LOG_LEVEL`、`ACCESS_LOG`、`FORWARDED_ALLOW_IPS` 和 `TIMEOUT_KEEP_ALIVE` 沿用运行配置。浏览器凭证只存 Cookie，服务端只存凭证 SHA256，不设置应用层 30/90 天强制过期；Cookie 仍受浏览器的保存策略限制。
 
 单文件和全站容量由后台设置并持久化，所有上传入口、公开配置和后台概览使用同一执行值。其他固定规则定义于 `apps/relay/config.py`：
 

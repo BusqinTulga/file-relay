@@ -28,9 +28,10 @@ def digest(value: str) -> str:
 
 
 def cookie(response: Response, request: Request, name: str, value: str, max_age=config.COOKIE_AGE):
-    response.set_cookie(name, value, httponly=True, samesite="strict", max_age=max_age,
-                        secure=request.url.scheme == "https" or os.getenv("APP_ENV") in {"production", "prod"},
-                        path="/")
+    production = os.getenv("APP_ENV") in {"production", "prod"}
+    allow_http = os.getenv("FILERELAY_ALLOW_HTTP", "").strip().lower() == "true"
+    secure = request.url.scheme == "https" or (production and not allow_http)
+    response.set_cookie(name, value, httponly=True, samesite="strict", max_age=max_age, secure=secure, path="/")
 
 
 async def optional_session(request: Request):

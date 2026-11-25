@@ -9,7 +9,7 @@ docker compose build
 docker compose up -d
 ```
 
-公网使用 HTTPS；本机 HTTP 验证使用 `APP_ENV=development docker compose up -d --build`。首次访问设置管理员密码；后台入口为 `/admin/dashboard`。数据卷持久化，重新构建不会重建数据库。
+默认使用 HTTPS。仅在可信内网通过服务器 IP 访问时，可设置 `FILERELAY_ALLOW_HTTP=true`，在生产模式下使用 HTTP。首次访问设置管理员密码；后台入口为 `/admin/dashboard`。数据卷持久化，重新构建不会重建数据库。
 
 - [运行、部署、备份恢复和实机验收](docs/guide/filerelay.md)
 - [API 契约](docs/api/relay.md)

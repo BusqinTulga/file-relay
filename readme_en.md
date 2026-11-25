@@ -9,7 +9,7 @@ docker compose build
 docker compose up -d
 ```
 
-Use HTTPS in production. For isolated local HTTP testing, set `APP_ENV=development`. Complete first-run setup and visit `/admin/dashboard` for the three administration pages: overview, files and settings.
+Production uses HTTPS by default. To access the server by IP over HTTP on a trusted private network, set `FILERELAY_ALLOW_HTTP=true`. Complete first-run setup and visit `/admin/dashboard` for the three administration pages: overview, files and settings.
 
 Retired anonymous sharing, presigned uploads, NAS file operations, external storage, text sharing and MCP are removed. A versioned database migration removes their unused schema and configuration while retaining Relay files, credentials, reservations, leases and original deadlines. See the [runtime and upgrade guide](docs/guide/filerelay.md), [cleanup inventory](docs/admin-cleanup-status.md), and [API contract](docs/api/relay.md).
 
