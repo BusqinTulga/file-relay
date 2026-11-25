@@ -217,7 +217,6 @@ onMounted(refreshConfig)
           :label="t('simple.sessionDays')"
           :suffix="t('common.day')"
         />
-        <p class="theme-text-muted text-sm">{{ t('simple.passwordEffect') }}</p>
       </section>
       <section class="admin-panel space-y-3">
         <h3 class="text-lg font-semibold">{{ t('simple.storageRules') }}</h3>

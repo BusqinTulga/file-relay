@@ -14,7 +14,6 @@ onMounted(refresh)
 </script>
 <template>
   <div class="admin-content">
-    <p class="theme-text-muted">{{ t('simple.overviewHint') }}</p>
     <p v-if="error" role="alert" class="admin-error">{{ error }}</p>
     <p v-if="isLoading && !data">{{ t('simple.loading') }}</p>
     <template v-if="data">

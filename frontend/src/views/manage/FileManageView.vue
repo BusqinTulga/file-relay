@@ -122,7 +122,6 @@ onMounted(refresh)
         {{ t('simple.next') }}
       </button>
     </div>
-    <p class="theme-text-muted text-xs">{{ t('simple.adminDownloadHint') }}</p>
     <BaseModal :show="!!detail" :title="t('simple.details')" @close="detail = null"
       ><dl v-if="detail" class="space-y-4 break-all">
         <div>

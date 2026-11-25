@@ -41,10 +41,7 @@ const time = (n: number) => new Date(n * 1000).toLocaleString(locale.value)
       {{ t('relay.loading') }}
     </section>
     <section v-else-if="mode === 'pair'" class="panel mx-auto max-w-lg p-7 sm:p-10">
-      <h2 class="text-xl font-semibold">{{ t('relay.pairTitle') }}</h2>
-      <p class="mb-6 mt-3 text-sm leading-6 opacity-65">
-        {{ t('relay.pairHint') }}
-      </p>
+      <h2 class="mb-6 text-xl font-semibold">{{ t('relay.pairTitle') }}</h2>
       <form novalidate @submit.prevent="pair">
         <span id="passcode-label" class="text-sm">{{ t('relay.passcode') }}</span>
         <input
@@ -112,13 +109,9 @@ const time = (n: number) => new Date(n * 1000).toLocaleString(locale.value)
       <section class="panel mb-5 overflow-hidden" :aria-label="t('relay.uploadRegion')">
         <div class="px-5 py-5 sm:px-8">
           <h2 class="mb-3 text-lg font-semibold">{{ t('relay.uploadTitle') }}</h2>
-          <p class="mb-3 text-xs opacity-65" aria-live="polite">{{
-            policy
-              ? policy.open_upload
-                ? t('relay.fileLimit', { limit: formatSizeLimit(policy.upload_size) })
-                : t('relay.uploadPaused')
-              : t('relay.loadingPolicy')
-          }}</p>
+          <p v-if="!policy?.open_upload" class="mb-3 text-xs opacity-65" aria-live="polite">
+            {{ t(policy ? 'relay.uploadPaused' : 'relay.loadingPolicy') }}
+          </p>
           <FileUploadArea
             class="payload-panel"
             :placeholder="t('relay.dropFiles')"

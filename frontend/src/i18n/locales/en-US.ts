@@ -20,7 +20,6 @@ export default {
   relay: {
     loading: 'Restoring your device session…',
     pairTitle: 'Enter the same code to connect your devices',
-    pairHint: 'Enter the same digits on both devices.',
     passcode: 'Pairing code',
     pairing: 'Pairing…',
     start: 'Connect devices',
@@ -36,7 +35,6 @@ export default {
     reject: 'Decline',
     uploadRegion: 'Upload area',
     uploadTitle: 'Send files',
-    fileLimit: 'File limit: {limit}',
     uploadPaused: 'Uploads are paused',
     loadingPolicy: 'Checking upload limits before uploads can begin.',
     dropFiles: 'Click or drop files anywhere on this page to upload',
@@ -88,7 +86,6 @@ export default {
     download: 'Download failed'
   },
   simple: {
-    overviewHint: 'Storage and runtime status for file relay',
     loading: 'Loading…',
     activeFiles: 'Available files',
     pendingFiles: 'Awaiting cleanup',
@@ -127,8 +124,6 @@ export default {
     password: 'Change password',
     passwordHint: 'Leave blank to keep the current password',
     sessionDays: 'Session duration in days',
-    passwordEffect:
-      'At least 8 characters. Changing the password requires signing in again; paired devices are unaffected.',
     storageRules: 'Storage and retention',
     localDisk: 'Local disk storage',
     fixedRules:
@@ -147,8 +142,6 @@ export default {
     empty: 'No matching files',
     previous: 'Previous',
     next: 'Next',
-    adminDownloadHint:
-      'A complete administrator download also starts the shared 10-minute retry window.',
     firstSent: 'First complete send',
     cleanupError: 'Cleanup error',
     status_all: 'All',

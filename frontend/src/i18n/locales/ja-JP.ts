@@ -22,7 +22,6 @@ export default {
   relay: {
     loading: 'デバイスのセッションを復元しています…',
     pairTitle: '同じコードでデバイスをペアリング',
-    pairHint: '両方のデバイスに同じ数字を入力してください。',
     passcode: 'ペアリングコード',
     pairing: 'ペアリング中…',
     start: 'ペアリングを開始',
@@ -38,7 +37,6 @@ export default {
     reject: '拒否',
     uploadRegion: 'アップロードエリア',
     uploadTitle: 'ファイルを送信',
-    fileLimit: '1ファイルの上限: {limit}',
     uploadPaused: 'アップロードは一時停止中です',
     loadingPolicy: 'アップロード制限を確認しています…',
     dropFiles: 'クリックするか、ページ内にファイルをドロップしてアップロード',
@@ -90,7 +88,6 @@ export default {
     download: 'ダウンロードに失敗しました'
   },
   simple: {
-    overviewHint: 'ファイルリレーの容量と稼働状況',
     loading: '読み込み中…',
     activeFiles: '有効なファイル',
     pendingFiles: '削除待ち',
@@ -128,7 +125,6 @@ export default {
     password: 'パスワードを変更',
     passwordHint: '変更しない場合は空欄にしてください',
     sessionDays: 'ログインの有効日数',
-    passwordEffect: 'パスワードは8文字以上です。変更後は再ログインが必要です。ペアリング済みのデバイスには影響しません。',
     storageRules: '保存先と保持ルール',
     localDisk: 'ローカルディスクに保存',
     fixedRules: 'ファイルは最長24時間、初回のダウンロード完了後は10分間保持されます。データディレクトリはデプロイ時に設定されます。',
@@ -146,7 +142,6 @@ export default {
     empty: '条件に一致するファイルがありません',
     previous: '前へ',
     next: '次へ',
-    adminDownloadHint: '管理者がダウンロードを完了した場合も、グループ全体で10分間の再ダウンロードが可能になります。',
     firstSent: '初回ダウンロード完了',
     cleanupError: '削除エラー',
     status_all: 'すべて',
