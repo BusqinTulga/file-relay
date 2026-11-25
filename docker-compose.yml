@@ -1,5 +1,6 @@
 services:
   filerelay:
+    container_name: filerelay
     build: .
     image: filerelay:local
     volumes:
