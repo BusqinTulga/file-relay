@@ -3,13 +3,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fastapi import Request
+
 import apps.base.pages as pages
 from core.settings import settings
 
 
 class IndexTemplateEscapingTests(unittest.TestCase):
-    """Regression: site config must be html.escape-d before template injection
-    (stored XSS prevention).
+    """Regression: legacy branding cannot change the rendered index.
 
     Uses a temp file as a stand-in for themes/*/index.html so the test also
     runs in a bare checkout without built frontends.
@@ -40,9 +41,10 @@ class IndexTemplateEscapingTests(unittest.TestCase):
         pages.resolve_theme_file = lambda *args, **kwargs: self._template_path
 
     def _render_index_html(self) -> str:
-        return asyncio.run(pages.index()).body.decode("utf-8")
+        request = Request({"type": "http", "query_string": b"", "headers": []})
+        return asyncio.run(pages.index(request)).body.decode("utf-8")
 
-    def test_malicious_site_config_is_escaped(self):
+    def test_malicious_legacy_site_config_is_ignored(self):
         self._patch_template()
         settings.name = "<script>alert(1)</script>"
         settings.description = '"><img src=x onerror=alert(2)>'
@@ -51,9 +53,9 @@ class IndexTemplateEscapingTests(unittest.TestCase):
 
         self.assertNotIn("<script>alert", html)
         self.assertNotIn("<img", html)
-        self.assertIn("&lt;script&gt;", html)
+        self.assertIn("<title>FileRelay・文件快传</title>", html)
 
-    def test_plain_site_config_renders_unchanged(self):
+    def test_plain_legacy_site_config_is_ignored(self):
         self._patch_template()
         settings.name = "FileCodeBox"
         settings.description = "A simple file share service"
@@ -61,8 +63,8 @@ class IndexTemplateEscapingTests(unittest.TestCase):
 
         html = self._render_index_html()
 
-        self.assertIn("<title>FileCodeBox</title>", html)
-        self.assertIn('content="A simple file share service"', html)
+        self.assertIn("<title>FileRelay・文件快传</title>", html)
+        self.assertIn('content="在你的设备之间，轻松传递文件"', html)
         self.assertIn("<div>0.9</div>", html)
 
 

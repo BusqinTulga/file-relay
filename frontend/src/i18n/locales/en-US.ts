@@ -1,9 +1,8 @@
 export default {
   shell: {
     home: 'FileRelay home',
-    siteName: 'FileRelay',
-    siteDescription: 'Transfer files between your devices',
-    footer: 'FileRelay · File Transfer',
+    siteName: 'FileRelay・File Transfer',
+    siteDescription: 'Easily transfer files between your devices',
     theme: 'Switch theme',
     navigation: 'Open navigation menu'
   },
@@ -73,7 +72,6 @@ export default {
   },
   errors: {
     sessionDaysRange: 'The session duration must be a whole number of days between 1 and 365.',
-    siteNameRequired: 'The site name cannot be blank.',
     adminPasswordLength: 'The administrator password must be at least 8 characters long.',
     sizePrecision: 'Enter a positive size with up to 6 decimal places for MB or 9 for GB.',
     cleanupFailed: 'The server could not clean up this file.',
@@ -115,8 +113,6 @@ export default {
     saveFailedDetail: 'Could not save changes: {reason}',
     invalidSize: 'Enter a valid size before changing the unit.',
     site: 'Site information',
-    siteName: 'Site name',
-    description: 'Description',
     adminEntry: 'Show admin link on the home page',
     hidden: 'Hidden',
     uploadCapacity: 'Uploads and capacity',
@@ -127,7 +123,7 @@ export default {
     storageRules: 'Storage and retention',
     localDisk: 'Local disk storage',
     fixedRules:
-      'Files last up to 24 hours, or 10 minutes after the first complete download. The data directory is configured at deployment.',
+      'Files last up to 24 hours, or 10 minutes after the first complete download.',
     filename: 'File name',
     status: 'Status',
     search: 'Search',

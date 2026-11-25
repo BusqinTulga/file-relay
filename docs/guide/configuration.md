@@ -19,10 +19,10 @@ FileCodeBox 支持两种配置方式：
 
 ### 站点信息
 
+站点名称和简介随界面语言自动切换。
+
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `name` | string | `文件快递柜 - FileCodeBox` | 站点名称，显示在页面标题和导航栏 |
-| `description` | string | `开箱即用的文件快传系统` | 站点描述，用于 SEO |
 | `keywords` | string | `FileCodeBox, 文件快递柜...` | 站点关键词，用于 SEO |
 | `server_host` | string | `0.0.0.0` | 服务监听地址 |
 | `server_port` | int | `12345` | 服务监听端口 |

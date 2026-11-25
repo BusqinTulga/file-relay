@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from core.settings import BASE_DIR, settings
 from apps.base.pages import index, resolve_theme_file
@@ -45,7 +45,8 @@ class ThemeAssetTests(SettingsOverrideMixin, unittest.TestCase):
     def test_index_keeps_absolute_asset_urls(self):
         settings.themes_select = "themes/2023"
 
-        response = asyncio.run(index())
+        request = Request({"type": "http", "query_string": b"", "headers": []})
+        response = asyncio.run(index(request))
         html = response.body.decode("utf-8")
 
         self.assertIn('src="/assets/', html)

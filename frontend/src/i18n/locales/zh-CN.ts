@@ -1,9 +1,8 @@
 export default {
   shell: {
     home: 'FileRelay 文件快传首页',
-    siteName: 'FileRelay／文件快传',
+    siteName: 'FileRelay・文件快传',
     siteDescription: '在你的设备之间，轻松传递文件',
-    footer: 'FileRelay · 文件快传',
     theme: '切换主题',
     navigation: '打开导航菜单'
   },
@@ -73,7 +72,6 @@ export default {
   },
   errors: {
     sessionDaysRange: '登录有效期必须为 1 至 365 个整天。',
-    siteNameRequired: '站点名称不能为空。',
     adminPasswordLength: '管理员密码至少需要 8 位。',
     sizePrecision: '请输入有效正数，MB 最多支持 6 位小数，GB 最多支持 9 位小数。',
     cleanupFailed: '服务器未能清理此文件。',
@@ -114,8 +112,6 @@ export default {
     saveFailed: '保存失败',
     saveFailedDetail: '保存失败：{reason}',
     site: '站点信息',
-    siteName: '站点名称',
-    description: '简介',
     adminEntry: '首页显示管理入口',
     hidden: '已隐藏',
     uploadCapacity: '上传与容量',
@@ -125,7 +121,7 @@ export default {
     sessionDays: '登录有效天数',
     storageRules: '存储与保留规则',
     localDisk: '使用本地磁盘存储',
-    fixedRules: '文件最多保留 24 小时，首次完整下载后保留 10 分钟。数据目录由部署环境指定。',
+    fixedRules: '文件最多保留 24 小时，首次完整下载后保留 10 分钟。',
     filename: '文件名',
     status: '状态',
     search: '查找',

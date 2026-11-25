@@ -26,10 +26,10 @@
           </span>
           <span class="min-w-0">
             <span class="theme-text-strong block text-sm font-semibold tracking-tight"
-              >{{ configStore.siteName }}</span
+              >{{ t('shell.siteName') }}</span
             >
             <span class="theme-text-muted mt-0.5 block text-[10px] leading-4"
-              >{{ configStore.siteDescription }}</span
+              >{{ t('shell.siteDescription') }}</span
             >
           </span>
         </RouterLink>
@@ -140,7 +140,6 @@ import {
 } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useConfigStore } from '@/stores/configStore'
 import { ROUTE_NAMES, ROUTES } from '@/constants'
 import { useAdminSession } from '@/composables'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -155,7 +154,6 @@ interface MenuItem {
   redirect: string
 }
 
-const configStore = useConfigStore()
 const router = useRouter()
 const route = useRoute()
 const { verifySession, logout } = useAdminSession()

@@ -17,8 +17,6 @@ const form = await import(
 
 async function harness() {
   const saved = {
-    name: 'Test site',
-    description: 'Old description',
     show_admin_addr: 0,
     open_upload: 1,
     upload_size: 10_485_760,
@@ -71,7 +69,7 @@ async function harness() {
   return { useSystemConfig: module.namespace.useSystemConfig, service, saved, requests, cachedConfig }
 }
 
-test('saving a description in a stale tab preserves another tab’s upload settings', async () => {
+test('saving storage capacity in a stale tab preserves another tab’s upload settings', async () => {
   const { useSystemConfig, saved, requests } = await harness()
   const first = useSystemConfig()
   const second = useSystemConfig()
@@ -80,17 +78,17 @@ test('saving a description in a stale tab preserves another tab’s upload setti
   first.config.value.open_upload = 0
   first.fileSize.value.value = 5
   await first.submitConfig()
-  second.config.value.description = 'New description'
+  second.capacity.value.value = 400
   await second.submitConfig()
 
-  assert.deepEqual(requests, [{ open_upload: 0, upload_size: 5_000_000 }, { description: 'New description' }])
+  assert.deepEqual(requests, [{ open_upload: 0, upload_size: 5_000_000 }, { storage_limit: 400_000_000_000 }])
   assert.equal(saved.open_upload, 0)
   assert.equal(saved.upload_size, 5_000_000)
-  assert.equal(saved.description, 'New description')
+  assert.equal(saved.storage_limit, 400_000_000_000)
   assert.equal(second.isDirty.value, false)
 })
 
-test('saving a description refreshes the public cache with another tab’s changes', async () => {
+test('saving storage capacity refreshes the public cache with another tab’s changes', async () => {
   const { useSystemConfig, saved, requests, cachedConfig } = await harness()
   const settings = useSystemConfig()
   await settings.refreshConfig()
@@ -98,12 +96,12 @@ test('saving a description refreshes the public cache with another tab’s chang
   // Another tab updates the server while this tab still has the old value cached.
   saved.show_admin_addr = 1
   assert.equal(cachedConfig.show_admin_addr, 0)
-  settings.config.value.description = 'New description'
+  settings.capacity.value.value = 400
   await settings.submitConfig()
 
-  assert.deepEqual(requests, [{ description: 'New description' }])
+  assert.deepEqual(requests, [{ storage_limit: 400_000_000_000 }])
   assert.equal(cachedConfig.show_admin_addr, 1)
-  assert.equal(cachedConfig.description, 'New description')
+  assert.equal(cachedConfig.storage_limit, 400_000_000_000)
   assert.equal(settings.isDirty.value, false)
 })
 
@@ -120,19 +118,19 @@ test('queued autosave compares with the last successful patch, including reverte
     await update(changes)
   }
 
-  settings.config.value.description = 'Temporary description'
+  settings.capacity.value.value = 400
   const firstSave = settings.submitConfig()
-  settings.config.value.description = 'Old description'
+  settings.capacity.value.value = 500
   settings.config.value.show_admin_addr = 1
   await settings.submitConfig()
   finishFirst()
   await firstSave
 
   assert.deepEqual(requests, [
-    { description: 'Temporary description' },
-    { description: 'Old description', show_admin_addr: 1 }
+    { storage_limit: 400_000_000_000 },
+    { storage_limit: 500_000_000_000, show_admin_addr: 1 }
   ])
-  assert.equal(saved.description, 'Old description')
+  assert.equal(saved.storage_limit, 500_000_000_000)
   assert.equal(saved.show_admin_addr, 1)
   assert.equal(settings.isDirty.value, false)
 })

@@ -1,19 +1,17 @@
-"""index.html render cache must stay correct across config/theme changes."""
+"""index.html render cache must stay correct across language/theme changes."""
 import asyncio
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 import apps.base.pages as pages
-from core.settings import settings
 
 
 class IndexRenderCacheTests(unittest.TestCase):
     def setUp(self):
-        self._original_user_config = dict(settings.user_config)
         self._original_resolve_theme_file = pages.resolve_theme_file
         self._tmpdir = tempfile.TemporaryDirectory()
         self.template = Path(self._tmpdir.name) / "index.html"
@@ -28,12 +26,12 @@ class IndexRenderCacheTests(unittest.TestCase):
 
     def tearDown(self):
         pages.resolve_theme_file = self._original_resolve_theme_file
-        settings.user_config = self._original_user_config
         pages._render_index_html.cache_clear()
         self._tmpdir.cleanup()
 
-    def _render(self) -> str:
-        return asyncio.run(pages.index()).body.decode("utf-8")
+    def _render(self, locale="zh-CN") -> str:
+        request = Request({"type": "http", "query_string": f"lang={locale}".encode()})
+        return asyncio.run(pages.index(request)).body.decode("utf-8")
 
     def test_repeated_requests_hit_the_render_cache(self):
         first = self._render()
@@ -44,13 +42,9 @@ class IndexRenderCacheTests(unittest.TestCase):
         self.assertEqual(info.misses, 1)
         self.assertEqual(info.hits, 1)
 
-    def test_site_config_change_invalidates_cache(self):
-        self._render()
-
-        settings.name = "New Site Name"
-        html = self._render()
-
-        self.assertIn("<title>New Site Name</title>", html)
+    def test_languages_have_separate_cache_entries(self):
+        self.assertIn("<title>FileRelay・文件快传</title>", self._render())
+        self.assertIn("<title>FileRelay・ファイルリレー</title>", self._render("ja-JP"))
         self.assertEqual(pages._render_index_html.cache_info().misses, 2)
 
     def test_template_replacement_invalidates_cache(self):
@@ -74,7 +68,7 @@ class IndexRenderCacheTests(unittest.TestCase):
         self.template.unlink()
 
         with self.assertRaises(HTTPException) as ctx:
-            asyncio.run(pages.index())
+            self._render()
         self.assertEqual(ctx.exception.status_code, 404)
 
 

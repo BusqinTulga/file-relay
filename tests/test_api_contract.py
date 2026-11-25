@@ -67,7 +67,7 @@ class TestApiContractSnakeCase:
             assert response.headers["Content-Security-Policy"] == "frame-ancestors 'none'"
             assert response.headers["X-Frame-Options"] == "DENY"
             if path.startswith("/admin/"):
-                assert response.headers["Vary"] == "Accept"
+                assert set(response.headers["Vary"].split(", ")) == {"Accept", "Accept-Language"}
 
         response = await initialized_client.get("/admin/dashboard", headers={"Accept": "application/json"})
         assert response.status_code == 401

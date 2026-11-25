@@ -55,10 +55,6 @@ _MESSAGES = {
         "The session duration must be a whole number of days between 1 and 365.",
         "ログインの有効日数は1～365の整数で指定してください。",
     ),
-    "站点名称不能为空": (
-        "The site name cannot be blank.",
-        "サイト名を空欄にすることはできません。",
-    ),
     "上传已暂停，请稍后重试": (
         "Uploads are paused. Try again later.",
         "アップロードは一時停止中です。しばらくしてから再試行してください。",
@@ -231,7 +227,7 @@ _PATTERNS = (
         "{0} は0または1で指定してください。",
     ),
     (
-        re.compile(r"(name|description|admin_token) 格式或长度错误"),
+        re.compile(r"(admin_token) 格式或长度错误"),
         "{0} has an invalid format or length.",
         "{0} の形式または長さが無効です。",
     ),

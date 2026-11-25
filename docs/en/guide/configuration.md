@@ -19,10 +19,10 @@ On first startup, the system uses default configuration from `core/settings.py`.
 
 ### Site Information
 
+The site name and description follow the interface language.
+
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `name` | string | `文件快递柜 - FileCodeBox` | Site name, displayed in page title and navigation bar |
-| `description` | string | `开箱即用的文件快传系统` | Site description, used for SEO |
 | `keywords` | string | `FileCodeBox, 文件快递柜...` | Site keywords, used for SEO |
 | `server_host` | string | `0.0.0.0` | Service listening address |
 | `server_port` | int | `12345` | Service listening port |

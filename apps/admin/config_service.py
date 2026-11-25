@@ -8,7 +8,7 @@ from core.security import generate_jwt_secret
 from core.settings import settings, data_root, ADMIN_SESSION_EXPIRE_MIN, ADMIN_SESSION_EXPIRE_MAX
 from core.utils import hash_password
 
-EDITABLE = {"name", "description", "admin_token",
+EDITABLE = {"admin_token",
             "admin_session_expire", "show_admin_addr", "open_upload", "upload_size", "storage_limit"}
 
 
@@ -28,11 +28,8 @@ class ConfigService:
                 value = data["admin_session_expire"]
                 if type(value) is not int or not ADMIN_SESSION_EXPIRE_MIN <= value <= ADMIN_SESSION_EXPIRE_MAX or value % ADMIN_SESSION_EXPIRE_MIN:
                     raise ValueError("登录有效期必须为 1 至 365 个整天")
-            for key in ("name", "description", "admin_token"):
-                if key in data and (not isinstance(data[key], str) or len(data[key]) > 255):
-                    raise ValueError(f"{key} 格式或长度错误")
-            if "name" in data and not data["name"].strip():
-                raise ValueError("站点名称不能为空")
+            if "admin_token" in data and (not isinstance(data["admin_token"], str) or len(data["admin_token"]) > 255):
+                raise ValueError("admin_token 格式或长度错误")
             if data.get("admin_token") and len(data["admin_token"]) < 8:
                 raise ValueError("管理员密码至少需要 8 位")
         except ValueError as exc:

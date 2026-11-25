@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 from apps.base import pages
+from apps.base.config import refresh_settings
+from apps.base.models import KeyValue
 from tests.test_api_contract import _login
 
 @pytest.mark.parametrize('path', ['/share/text','/share/file','/share/select','/share/metadata',
@@ -26,7 +28,8 @@ async def test_fresh_install_exposes_setup_in_json_api_response(client, monkeypa
         assert response.json()['detail']['setup'] == '/setup'
     setup_page = await client.get('/')
     assert '初始化文件快传' in setup_page.text
-    assert 'FileRelay／文件快传' in setup_page.text
+    assert 'FileRelay・文件快传' in setup_page.text
+    assert 'name="site_name"' not in setup_page.text
     assert 'rel="icon" type="image/png" href="/assets/logo_small.png"' in setup_page.text
     assert "img-src 'self'" in setup_page.headers['content-security-policy']
 
@@ -55,6 +58,33 @@ async def test_setup_language_survives_validation_and_success(client):
     assert '<title>Setup complete</title>' in response.text
     assert 'href="/?lang=en-US"' in response.text
     assert 'rel="icon" type="image/png" href="/assets/logo_small.png"' in response.text
+
+
+async def test_legacy_branding_is_ignored_and_admin_cannot_update_it(initialized_client):
+    row = await KeyValue.get(key='settings')
+    assert row.value['name'] != 'integration-tests'
+    row.value.update(name='Old site name', description='Old site description')
+    await row.save()
+    await refresh_settings(force=True)
+
+    token = await _login(initialized_client)
+    headers = {'Authorization': f'Bearer {token}'}
+    response = await initialized_client.get('/admin/config/get', headers=headers)
+    assert response.status_code == 200
+    assert not {'name', 'description'} & response.json()['detail'].keys()
+    for field in ('name', 'description'):
+        response = await initialized_client.patch('/admin/config/update', headers=headers, json={field: 'Replacement'})
+        assert response.status_code == 422
+
+    for locale, name, description in (
+        ('zh-CN', 'FileRelay・文件快传', '在你的设备之间，轻松传递文件'),
+        ('en-US', 'FileRelay・File Transfer', 'Easily transfer files between your devices'),
+        ('ja-JP', 'FileRelay・ファイルリレー', 'デバイス間でファイルをかんたんに転送'),
+    ):
+        response = await initialized_client.get('/api/v1/config', headers={'Accept-Language': locale})
+        assert response.status_code == 200
+        config = response.json()['detail']['config']
+        assert (config['name'], config['description']) == (name, description)
 
 
 async def test_setup_preserves_admin_password_whitespace(client):

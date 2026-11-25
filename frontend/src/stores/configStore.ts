@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import i18n from '@/i18n'
 import type { ConfigState, PublicConfigMeta } from '@/types'
 import {
   DEFAULT_PUBLIC_CONFIG,
@@ -17,14 +16,6 @@ export const useConfigStore = defineStore('config', () => {
   })
   const publicMeta = ref<PublicConfigMeta>({})
 
-  const siteName = computed(() =>
-    config.value.name === DEFAULT_PUBLIC_CONFIG.name ? i18n.global.t('shell.siteName') : config.value.name
-  )
-  const siteDescription = computed(() =>
-    config.value.description === DEFAULT_PUBLIC_CONFIG.description
-      ? i18n.global.t('shell.siteDescription')
-      : config.value.description
-  )
   const uploadSizeLimit = computed(() => config.value.upload_size)
 
   const updateConfig = (nextConfig: Partial<ConfigState>) => {
@@ -55,8 +46,6 @@ export const useConfigStore = defineStore('config', () => {
   return {
     config,
     publicMeta,
-    siteName,
-    siteDescription,
     uploadSizeLimit,
     applyPublicMeta,
     updateConfig,

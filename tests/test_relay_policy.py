@@ -205,11 +205,11 @@ async def test_admin_only_retained_api_and_exact_partial_settings(initialized_cl
     c = initialized_client
     auth = await admin(c)
     await configure(c, {'upload_size': 10_485_760}, auth)
-    results = await asyncio.gather(c.patch('/admin/config/update', json={'description': 'new'}, headers=auth),
+    results = await asyncio.gather(c.patch('/admin/config/update', json={'open_upload': 0}, headers=auth),
                                   c.patch('/admin/config/update', json={'show_admin_addr': 1}, headers=auth))
     assert all(r.status_code == 200 for r in results)
     stored = (await c.get('/admin/config/get', headers=auth)).json()['detail']
-    assert stored['upload_size'] == 10_485_760 and stored['description'] == 'new' and stored['show_admin_addr'] == 1
+    assert stored['upload_size'] == 10_485_760 and stored['open_upload'] == 0 and stored['show_admin_addr'] == 1
     assert not {'jwt_secret', 's3_secret_access_key', 'trusted_proxies', 'server_port'} & stored.keys()
     for key in ('s3_bucket_name', 'expire_style', 'themes_select', 'server_port', 'notify_title', 'notify_content'):
         assert (await c.patch('/admin/config/update', json={key: 'x'}, headers=auth)).status_code == 422

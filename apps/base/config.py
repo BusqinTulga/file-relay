@@ -13,7 +13,7 @@ from core.utils import hash_password
 
 
 MIN_ADMIN_PASSWORD_LENGTH = 8
-SETUP_CONFIG_FIELDS = {"name", "open_upload", "upload_size", "storage_limit"}
+SETUP_CONFIG_FIELDS = {"open_upload", "upload_size", "storage_limit"}
 
 
 async def ensure_settings_row() -> None:
@@ -86,7 +86,6 @@ def is_runtime_initialized() -> bool:
 
 async def initialize_system(
     admin_password: str,
-    site_name: str | None = None,
     setup_options: dict | None = None,
 ) -> None:
     password = str(admin_password or "")
@@ -106,10 +105,6 @@ async def initialize_system(
         for key, value in (setup_options or {}).items():
             if key in SETUP_CONFIG_FIELDS:
                 next_config[key] = value
-
-        normalized_site_name = str(site_name or "").strip()
-        if normalized_site_name:
-            next_config["name"] = normalized_site_name[:80]
 
         next_config["admin_token"] = hash_password(password)
         if not is_valid_jwt_secret(next_config.get("jwt_secret")):

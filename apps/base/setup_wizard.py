@@ -5,18 +5,21 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from apps.relay.policy import format_size, policy, validate_limits
 from core.error_i18n import preferred_locale
-from core.settings import DEFAULT_CONFIG, settings
+from core.settings import settings
 from core.version import APP_VERSION
 
 
 FAVICON_PATH = "/assets/logo_small.png"
 SETUP_LANGUAGES = {"zh-CN": "中文", "en-US": "English", "ja-JP": "日本語"}
+SITE_BRANDING = {
+    "zh-CN": ("FileRelay・文件快传", "在你的设备之间，轻松传递文件"),
+    "en-US": ("FileRelay・File Transfer", "Easily transfer files between your devices"),
+    "ja-JP": ("FileRelay・ファイルリレー", "デバイス間でファイルをかんたんに転送"),
+}
 SETUP_TEXT = {
     "zh-CN": {
         "title": "初始化文件快传",
         "intro": "设置管理员密码后即可使用文件快传。",
-        "site": "站点名称",
-        "name": DEFAULT_CONFIG["name"],
         "password": "管理员密码",
         "confirm": "确认密码",
         "limits": "当前单文件上限 {file}，全站 {site}，可在后台调整。文件最多保留 24 小时，首次完整下载后保留 10 分钟。",
@@ -29,8 +32,6 @@ SETUP_TEXT = {
     "en-US": {
         "title": "Set up FileRelay",
         "intro": "Set an administrator password to start transferring files.",
-        "site": "Site name",
-        "name": "FileRelay",
         "password": "Administrator password",
         "confirm": "Confirm password",
         "limits": (
@@ -46,8 +47,6 @@ SETUP_TEXT = {
     "ja-JP": {
         "title": "FileRelay の初期設定",
         "intro": "管理者パスワードを設定すると、ファイルの転送を開始できます。",
-        "site": "サイト名",
-        "name": "FileRelay／ファイルリレー",
         "password": "管理者パスワード",
         "confirm": "パスワードを確認",
         "limits": (
@@ -69,9 +68,9 @@ def setup_locale(request: Request, submitted=None):
     return preferred_locale(request)
 
 
-def build_public_config():
-    return {key: getattr(settings, key) for key in
-            ("name", "description", "show_admin_addr")} | policy()
+def build_public_config(locale: str):
+    name, description = SITE_BRANDING[locale]
+    return {"name": name, "description": description, "show_admin_addr": settings.show_admin_addr} | policy()
 
 
 def build_public_meta():
@@ -84,10 +83,9 @@ def parse_setup_options(data):
     return values
 
 
-def build_setup_page(error="", form=None, *, locale="zh-CN"):
-    form = form or {}
+def build_setup_page(error="", *, locale="zh-CN"):
     text = SETUP_TEXT[locale]
-    name = html.escape(str(form.get("site_name") or ""), quote=True)
+    name, _ = SITE_BRANDING[locale]
     limits = text["limits"].format(file=format_size(settings.upload_size), site=format_size(settings.storage_limit))
     languages = " · ".join(
         f'<a href="/setup?lang={code}" lang="{code}"{" aria-current=true" if code == locale else ""}>{label}</a>'
@@ -101,13 +99,9 @@ main{{max-width:440px;margin:8vh auto;background:white;padding:32px;border-radiu
 .setup-field{{margin:20px 0}}input,button{{box-sizing:border-box;width:100%;padding:12px;margin-top:8px;border:1px solid #ddd;border-radius:8px}}
 button{{background:#18181b;color:white;cursor:pointer}}p{{line-height:1.7}}.error{{color:#b91c1c}}
 nav{{text-align:right;font-size:.875rem}}nav a{{color:#52525b}}nav a[aria-current]{{font-weight:bold}}</style>
-<main><nav>{languages}</nav><h1>{text["title"]}</h1><p>{text["intro"]}</p>
+<main><nav>{languages}</nav><p>{html.escape(name)}</p><h1>{text["title"]}</h1><p>{text["intro"]}</p>
 <p class="error" role="alert">{html.escape(str(error))}</p><form method="post" action="/setup" novalidate>
 <input type="hidden" name="lang" value="{locale}">
-<div class="setup-field">
-<span id="setup-site-name">{text["site"]}</span>
-<input name="site_name" aria-labelledby="setup-site-name" maxlength="80" value="{name}" placeholder="{text["name"]}">
-</div>
 <div class="setup-field">
 <span id="setup-password">{text["password"]}</span>
 <input name="admin_password" aria-labelledby="setup-password" type="password" minlength="8" maxlength="255" autocomplete="new-password" required>

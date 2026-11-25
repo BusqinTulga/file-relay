@@ -5,12 +5,13 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 from apps.base.config import initialize_system, is_runtime_initialized
 from apps.base.setup_wizard import (
     SETUP_TEXT,
+    SITE_BRANDING,
     build_public_config,
     build_public_meta,
     build_setup_page,
@@ -22,7 +23,7 @@ from apps.base.setup_wizard import (
 )
 from core.error_i18n import localize_error, preferred_locale
 from core.response import APIResponse
-from core.settings import BASE_DIR, settings
+from core.settings import BASE_DIR
 from core.version import APP_VERSION
 
 router = APIRouter()
@@ -46,21 +47,18 @@ async def setup_submit(request: Request):
     locale = setup_locale(request, data.get("lang"))
     admin_password = str(data.get("admin_password") or "")
     confirm_password = str(data.get("confirm_password") or "")
-    site_name = str(data.get("site_name") or "")
-
     if admin_password != confirm_password:
-        return setup_response(build_setup_page(SETUP_TEXT[locale]["mismatch"], data, locale=locale), 400)
+        return setup_response(build_setup_page(SETUP_TEXT[locale]["mismatch"], locale=locale), 400)
 
     try:
         setup_options = parse_setup_options(data)
         await initialize_system(
             admin_password=admin_password,
-            site_name=site_name,
             setup_options=setup_options,
         )
     except ValueError as exc:
         detail = localize_error(str(exc), locale, 400)
-        return setup_response(build_setup_page(detail, data, locale=locale), 400)
+        return setup_response(build_setup_page(detail, locale=locale), 400)
 
     if "application/json" in request.headers.get("accept", ""):
         return APIResponse(detail={"ok": True, "admin": "/admin/dashboard"})
@@ -106,21 +104,17 @@ def _render_index_html(
     inode: int,
     mtime_ns: int,
     size: int,
-    title: str,
-    description: str,
+    locale: str,
     keywords: str,
     opacity: str,
     background: str,
 ) -> str:
-    """Render index.html once per (theme file version, site config) pair.
-
-    The stat fields keep the cache honest when a theme is replaced in place;
-    config values are part of the key so admin edits are visible immediately
-    without any cross-module invalidation hook.
-    """
+    """Cache the rendered HTML by theme file version and language."""
+    title, description = SITE_BRANDING[locale]
     return (
         Path(template_path)
         .read_text(encoding="utf-8")
+        .replace("{{lang}}", locale)
         .replace("{{title}}", html.escape(title))
         .replace("{{description}}", html.escape(description))
         .replace("{{keywords}}", html.escape(keywords))
@@ -158,17 +152,15 @@ async def not_found_handler(request, exc=None):
         request.headers.get("accept", "")
     ):
         try:
-            return await index(request, exc)
+            return await index(request)
         except HTTPException:
             return json_404
     return json_404
 
 
 @router.get("/")
-async def index(request=None, exc=None):
-    # Site config is admin input (and during the setup window anyone can claim it);
-    # always escape before injecting into the theme template to prevent stored XSS
-    # (mirrors the setup page).
+async def index(request: Request):
+    locale = preferred_locale(request)
     template_path = resolve_theme_file("index.html")
     try:
         stat_result = template_path.stat()
@@ -181,8 +173,7 @@ async def index(request=None, exc=None):
         stat_result.st_ino,
         stat_result.st_mtime_ns,
         stat_result.st_size,
-        str(settings.name),
-        str(settings.description),
+        locale,
         "",
         "0.9",
         "",
@@ -192,6 +183,7 @@ async def index(request=None, exc=None):
         media_type="text/html",
         headers={
             "Cache-Control": "no-cache",
+            "Vary": "Accept-Language",
             "Content-Security-Policy": "frame-ancestors 'none'",
             "X-Frame-Options": "DENY",
         },
@@ -203,15 +195,17 @@ async def robots():
 
 
 @router.post("/")
-async def get_config():
-    return APIResponse(detail=build_public_config())
+async def get_config(request: Request, response: Response):
+    response.headers["Vary"] = "Accept-Language"
+    return APIResponse(detail=build_public_config(preferred_locale(request)))
 
 
 @router.get("/api/v1/config")
-async def get_public_config():
+async def get_public_config(request: Request, response: Response):
+    response.headers["Vary"] = "Accept-Language"
     return APIResponse(
         detail={
-            "config": build_public_config(),
+            "config": build_public_config(preferred_locale(request)),
             "meta": build_public_meta(),
         }
     )

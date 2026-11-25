@@ -33,7 +33,14 @@ const adminEntryLabel = computed(() =>
   t(adminStore.isAuthenticated ? 'admin.session.loggedIn' : 'admin.session.loggedOut')
 )
 
-watch(() => configStore.siteName, (name) => { document.title = name }, { immediate: true })
+watch(
+  [() => t('shell.siteName'), () => t('shell.siteDescription')],
+  ([name, description]) => {
+    document.title = name
+    document.querySelector('meta[name="description"]')?.setAttribute('content', description)
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
   if (adminStore.hasToken) void verifySession()
@@ -59,9 +66,9 @@ onMounted(() => {
         </span>
         <span>
           <span class="block text-base font-semibold tracking-tight sm:text-lg"
-            >{{ configStore.siteName }}</span
+            >{{ t('shell.siteName') }}</span
           >
-          <span class="theme-text-muted mt-0.5 block text-xs">{{ configStore.siteDescription }}</span>
+          <span class="theme-text-muted mt-0.5 block text-xs">{{ t('shell.siteDescription') }}</span>
         </span>
       </RouterLink>
       <div v-if="showGlobalControls" class="ml-auto flex items-center gap-2 sm:gap-3">

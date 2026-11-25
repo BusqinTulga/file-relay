@@ -17,6 +17,7 @@ if not data_root.exists():
     data_root.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_CONFIG: dict[str, Any] = {
+    # Legacy settings keys retained for database compatibility. Display uses SITE_BRANDING.
     "name": "FileRelay／文件快传",
     "description": "在你的设备之间，轻松传递文件",
     "admin_token": "", "jwt_secret": "",

@@ -2,7 +2,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSystemConfig } from '@/composables'
-import { DEFAULT_PUBLIC_CONFIG } from '@/utils/config-storage'
 import SettingSwitch from '@/components/common/SettingSwitch.vue'
 import SettingNumberInput from '@/components/common/SettingNumberInput.vue'
 const { t } = useI18n()
@@ -22,22 +21,6 @@ const {
 } = useSystemConfig()
 const form = ref<HTMLFormElement | null>(null)
 const passwordDraft = ref('')
-const siteName = computed({
-  get: () =>
-    config.value.name === DEFAULT_PUBLIC_CONFIG.name ? t('shell.siteName') : config.value.name,
-  set: (name) => {
-    config.value.name = name
-  }
-})
-const siteDescription = computed({
-  get: () =>
-    config.value.description === DEFAULT_PUBLIC_CONFIG.description
-      ? t('shell.siteDescription')
-      : config.value.description,
-  set: (description) => {
-    config.value.description = description
-  }
-})
 const hasUnsavedChanges = computed(
   () => (loaded.value && isLoading.value) || isDirty.value || passwordDraft.value !== config.value.admin_token
 )
@@ -56,10 +39,8 @@ function saveChanges() {
   if (invalidInput) {
     if (invalidInput.type === 'number') {
       showSaveError(t(invalidInput.required ? 'errors.sizePrecision' : 'errors.sessionDaysRange'))
-    } else if (invalidInput.type === 'password') {
-      showSaveError(t('errors.adminPasswordLength'))
     } else {
-      showSaveError(t('errors.siteNameRequired'))
+      showSaveError(t('errors.adminPasswordLength'))
     }
     return
   }
@@ -112,25 +93,6 @@ onMounted(refreshConfig)
     <fieldset v-if="loaded" class="space-y-6">
       <section class="admin-panel space-y-5">
         <h3 class="text-lg font-semibold">{{ t('simple.site') }}</h3>
-        <div class="admin-label">
-          <span id="site-name-label">{{ t('simple.siteName') }}</span>
-          <input
-            v-model="siteName"
-            aria-labelledby="site-name-label"
-            required
-            maxlength="80"
-            class="admin-input"
-          />
-        </div>
-        <div class="admin-label">
-          <span id="site-description-label">{{ t('simple.description') }}</span>
-          <input
-            v-model="siteDescription"
-            aria-labelledby="site-description-label"
-            maxlength="255"
-            class="admin-input"
-          />
-        </div>
         <SettingSwitch
           :label="t('simple.adminEntry')"
           :model-value="config.show_admin_addr"

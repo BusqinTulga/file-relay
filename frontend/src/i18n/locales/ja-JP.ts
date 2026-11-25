@@ -3,9 +3,8 @@ import type zhCN from './zh-CN'
 export default {
   shell: {
     home: 'FileRelay ホーム',
-    siteName: 'FileRelay／ファイルリレー',
+    siteName: 'FileRelay・ファイルリレー',
     siteDescription: 'デバイス間でファイルをかんたんに転送',
-    footer: 'FileRelay · ファイルリレー',
     theme: 'テーマを切り替え',
     navigation: 'ナビゲーションメニューを開く'
   },
@@ -75,7 +74,6 @@ export default {
   },
   errors: {
     sessionDaysRange: 'ログインの有効日数は1～365の整数で指定してください。',
-    siteNameRequired: 'サイト名を空欄にすることはできません。',
     adminPasswordLength: '管理者パスワードは8文字以上で入力してください。',
     sizePrecision: '正の数を入力してください。MB は小数点以下6桁、GB は9桁まで指定できます。',
     cleanupFailed: 'サーバーでこのファイルを削除できませんでした。',
@@ -116,8 +114,6 @@ export default {
     saveFailedDetail: '変更を保存できませんでした：{reason}',
     invalidSize: '有効な容量を入力してから単位を変更してください。',
     site: 'サイト情報',
-    siteName: 'サイト名',
-    description: '説明',
     adminEntry: 'ホームに管理画面へのリンクを表示',
     hidden: '非表示',
     uploadCapacity: 'アップロードと容量',
@@ -127,7 +123,7 @@ export default {
     sessionDays: 'ログインの有効日数',
     storageRules: '保存先と保持ルール',
     localDisk: 'ローカルディスクに保存',
-    fixedRules: 'ファイルは最長24時間、初回のダウンロード完了後は10分間保持されます。データディレクトリはデプロイ時に設定されます。',
+    fixedRules: 'ファイルは最長24時間、初回のダウンロード完了後は10分間保持されます。',
     filename: 'ファイル名',
     status: 'ステータス',
     search: '検索',

@@ -229,7 +229,7 @@ Administrators can modify most configurations through the admin panel:
 
 | Category | Example Settings |
 |----------|------------------|
-| Basic Settings | `name`, `description` |
+| Site Settings | `show_admin_addr` |
 | Upload Settings | `upload_size`, `upload_minute`, `upload_count`, `open_upload`, `enable_chunk` |
 | Expiration Settings | `expire_style`, `max_save_seconds` |
 | Theme Settings | `themes_select`, `opacity`, `background` |
