@@ -29,7 +29,14 @@ from apps.base.pages import (
     not_found_handler,
     router as pages_router,
 )
-from apps.base.setup_wizard import build_setup_page, is_setup_path, setup_locale, setup_response, wants_html_response
+from apps.base.setup_wizard import (
+    FAVICON_PATH,
+    build_setup_page,
+    is_setup_path,
+    setup_locale,
+    setup_response,
+    wants_html_response,
+)
 from apps.relay.auth import router as relay_auth
 from apps.relay.uploads import router as relay_uploads
 from apps.relay.files import router as relay_files
@@ -152,7 +159,7 @@ class RequestMiddleware:
             response = JSONResponse(status_code=410, content={"detail": detail})
             await response(scope, receive, send)
             return
-        if not is_runtime_initialized() and not is_setup_path(path):
+        if not is_runtime_initialized() and not is_setup_path(path) and path != FAVICON_PATH:
             if is_frontend_navigation or (
                 not path.startswith(("/api/", "/admin/")) and wants_html_response(request)
             ):

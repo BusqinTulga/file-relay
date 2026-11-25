@@ -9,6 +9,7 @@ from core.settings import DEFAULT_CONFIG, settings
 from core.version import APP_VERSION
 
 
+FAVICON_PATH = "/assets/logo_small.png"
 SETUP_LANGUAGES = {"zh-CN": "中文", "en-US": "English", "ja-JP": "日本語"}
 SETUP_TEXT = {
     "zh-CN": {
@@ -94,6 +95,7 @@ def build_setup_page(error="", form=None, *, locale="zh-CN"):
     )
     return f'''<!doctype html><html lang="{locale}"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>{text["title"]}</title>
+<link rel="icon" type="image/png" href="{FAVICON_PATH}">
 <style>body{{font:16px system-ui;background:#f4f4f5;color:#18181b;margin:0;padding:24px}}
 main{{max-width:440px;margin:8vh auto;background:white;padding:32px;border-radius:20px}}
 .setup-field{{margin:20px 0}}input,button{{box-sizing:border-box;width:100%;padding:12px;margin-top:8px;border:1px solid #ddd;border-radius:8px}}
@@ -121,13 +123,17 @@ def build_setup_success_page(locale="zh-CN"):
     text = SETUP_TEXT[locale]
     return f'''<!doctype html><html lang="{locale}"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{text["complete"]}</title>
+<link rel="icon" type="image/png" href="{FAVICON_PATH}">
 <h1>{text["complete"]}</h1><p><a href="/?lang={locale}">{text["home"]}</a> ·
 <a href="/admin/dashboard?lang={locale}">{text["admin"]}</a></p></html>'''
 
 
 def setup_response(content, status_code=200):
     return HTMLResponse(content, status_code=status_code, headers={"Cache-Control": "no-store",
-        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"})
+        "Content-Security-Policy": (
+            "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; "
+            "form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+        )})
 
 
 def is_setup_path(path):

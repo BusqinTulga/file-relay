@@ -1,5 +1,8 @@
 """Retired public protocols cannot be revived by administrator authentication."""
+from pathlib import Path
+
 import pytest
+from apps.base import pages
 from tests.test_api_contract import _login
 
 @pytest.mark.parametrize('path', ['/share/text','/share/file','/share/select','/share/metadata',
@@ -16,14 +19,23 @@ async def test_admin_still_requires_own_token(initialized_client):
     assert (await initialized_client.get('/admin/file/list')).status_code==401
 
 
-async def test_fresh_install_exposes_setup_in_json_api_response(client):
+async def test_fresh_install_exposes_setup_in_json_api_response(client, monkeypatch):
     for path in ('/api/v1/config', '/api/relay/session', '/admin/verify'):
         response = await client.get(path)
         assert response.status_code == 428
         assert response.json()['detail']['setup'] == '/setup'
-    setup_page = (await client.get('/')).text
-    assert '初始化文件快传' in setup_page
-    assert 'FileRelay／文件快传' in setup_page
+    setup_page = await client.get('/')
+    assert '初始化文件快传' in setup_page.text
+    assert 'FileRelay／文件快传' in setup_page.text
+    assert 'rel="icon" type="image/png" href="/assets/logo_small.png"' in setup_page.text
+    assert "img-src 'self'" in setup_page.headers['content-security-policy']
+
+    public_dir = Path(__file__).resolve().parents[1] / 'frontend' / 'public'
+    monkeypatch.setattr(pages, 'resolve_theme_root', lambda: public_dir)
+    icon = await client.get('/assets/logo_small.png', headers={'Accept': 'image/png'})
+    assert icon.status_code == 200
+    assert icon.headers['content-type'] == 'image/png'
+    assert icon.content == (public_dir / 'assets/logo_small.png').read_bytes()
 
 
 async def test_setup_language_survives_validation_and_success(client):
@@ -42,6 +54,7 @@ async def test_setup_language_survives_validation_and_success(client):
     assert response.status_code == 200
     assert '<title>Setup complete</title>' in response.text
     assert 'href="/?lang=en-US"' in response.text
+    assert 'rel="icon" type="image/png" href="/assets/logo_small.png"' in response.text
 
 
 async def test_setup_preserves_admin_password_whitespace(client):
