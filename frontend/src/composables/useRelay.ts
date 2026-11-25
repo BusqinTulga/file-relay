@@ -9,7 +9,7 @@ interface QueueItem {
   key: number
   file: File
   progress: number
-  state: 'queued' | 'hashing' | 'uploading' | 'publishing' | 'complete' | 'cancelled' | 'failed'
+  state: 'queued' | 'hashing' | 'uploading' | 'publishing' | 'complete' | 'alreadyUploaded' | 'cancelled' | 'failed'
   error: string
   generation: number
   uploadID?: string
@@ -256,6 +256,12 @@ export function useRelay() {
           )
           item.uploadID = upload.id
           check()
+          if (upload.state === 'completed') {
+            item.state = 'alreadyUploaded'
+            item.progress = 100
+            await sync()
+            continue
+          }
           item.state = 'uploading'
           const count = Math.max(1, Math.ceil(item.file.size / upload.chunk_size))
           for (let index = 0; index < count && upload.state === 'uploading'; index++) {

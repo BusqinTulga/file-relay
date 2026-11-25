@@ -60,6 +60,7 @@ export default {
     uploading: 'アップロード中',
     publishing: '公開中',
     complete: '完了',
+    alreadyUploaded: '同じファイルがあるため、アップロードをスキップしました。',
     cancelled: 'キャンセル済み',
     failed: '失敗',
     pairChanged: 'ペアリングが変更されました。ファイルを選び直してください。',

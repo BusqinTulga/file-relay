@@ -58,6 +58,7 @@ export default {
     uploading: 'Uploading',
     publishing: 'Publishing',
     complete: 'Complete',
+    alreadyUploaded: 'File already exists. Upload skipped.',
     cancelled: 'Cancelled',
     failed: 'Failed',
     pairChanged: 'The pairing changed. Select the files again.',

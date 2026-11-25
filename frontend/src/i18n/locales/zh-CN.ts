@@ -58,6 +58,7 @@ export default {
     uploading: '上传中',
     publishing: '发布中',
     complete: '已完成',
+    alreadyUploaded: '文件已存在，已跳过重复上传',
     cancelled: '已取消',
     failed: '失败',
     pairChanged: '配对发生变化，请在当前列表重新选择文件',

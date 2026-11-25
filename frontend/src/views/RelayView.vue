@@ -139,7 +139,10 @@ const time = (n: number) => new Date(n * 1000).toLocaleString(locale.value)
           <div v-for="item in queue" :key="item.key" class="border-t border-slate-400/15 py-4">
             <div class="flex items-center gap-3">
               <span class="min-w-0 flex-1 break-all text-sm">{{ item.file.name }}</span
-              ><span class="text-xs opacity-60">{{ t('relay.' + item.state) }} {{ item.progress }}%</span>
+              ><span class="text-xs opacity-60">
+                {{ t('relay.' + item.state) }}
+                <template v-if="item.state !== 'alreadyUploaded'">{{ item.progress }}%</template>
+              </span>
               <button
                 v-if="canRetry(item)"
                 class="text-sm text-zinc-700 dark:text-zinc-300"

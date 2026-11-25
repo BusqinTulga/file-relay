@@ -203,6 +203,23 @@ test('changed browser cookie clears old list before new list arrives', async () 
   unmount()
 })
 
+test('an existing upload is shown as skipped and the queue continues', async () => {
+  const completed = []
+  const { flow, unmount } = await harness({
+    start: async (name) => name === 'existing.txt'
+      ? { id: 'existing', state: 'completed' }
+      : { id: 'next', state: 'uploading', chunk_size: 1, chunks: [0] },
+    complete: async (id) => { completed.push(id) }
+  })
+  flow.addFiles([{ name: 'existing.txt', size: 1 }, { name: 'next.txt', size: 1 }])
+  await flush()
+  assert.equal(flow.queue.value[0].state, 'alreadyUploaded')
+  assert.equal(zhCN.relay.alreadyUploaded, '文件已存在，已跳过重复上传')
+  assert.equal(flow.queue.value[1].state, 'complete')
+  assert.deepEqual(completed, ['next'])
+  unmount()
+})
+
 test('retry waits until server-side cancellation settles', async () => {
   let finishCancel, starts = 0
   const { flow, unmount } = await harness({
