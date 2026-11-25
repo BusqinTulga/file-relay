@@ -2,7 +2,7 @@
 import { computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, RouterView } from 'vue-router'
-import { LogInIcon, ShieldCheckIcon, SendIcon } from 'lucide-vue-next'
+import { LogInIcon, ShieldCheckIcon } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import ThemeToggle from './components/common/ThemeToggle.vue'
 import LanguageSwitcher from './components/common/LanguageSwitcher.vue'
@@ -51,11 +51,11 @@ onMounted(() => {
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border sm:h-12 sm:w-12"
           :class="
             isDarkMode
-              ? 'border-white/10 bg-white/10 text-zinc-100'
-              : 'border-white/80 bg-zinc-100 text-zinc-900 shadow-sm'
+              ? 'border-white/10 bg-white/10'
+              : 'border-white/80 bg-zinc-100 shadow-sm'
           "
         >
-          <SendIcon class="h-6 w-6" :stroke-width="1.5" />
+          <img src="/assets/logo_small.png" alt="" width="24" height="24" />
         </span>
         <span>
           <span class="block text-base font-semibold tracking-tight sm:text-lg"

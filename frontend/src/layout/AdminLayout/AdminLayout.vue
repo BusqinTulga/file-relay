@@ -20,9 +20,9 @@
           :aria-label="t('shell.home')"
         >
           <span
-            class="theme-surface-strong theme-text-strong flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border shadow-sm"
+            class="theme-surface-strong flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border shadow-sm"
           >
-            <SendIcon class="h-5 w-5" :stroke-width="1.5" />
+            <img src="/assets/logo_small.png" alt="" width="20" height="20" />
           </span>
           <span class="min-w-0">
             <span class="theme-text-strong block text-sm font-semibold tracking-tight"
@@ -131,7 +131,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import {
-  SendIcon,
   MenuIcon,
   XIcon,
   FolderIcon,

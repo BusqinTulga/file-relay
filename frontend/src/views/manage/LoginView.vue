@@ -29,7 +29,7 @@
               isDarkMode ? 'bg-zinc-900' : 'bg-white'
             ]"
           >
-            <BoxIcon :class="['h-8 w-8', isDarkMode ? 'text-zinc-100' : 'text-zinc-600']" />
+            <img src="/assets/logo_small.png" alt="" width="32" height="32" />
           </div>
         </div>
         <h2
@@ -98,7 +98,6 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BoxIcon } from 'lucide-vue-next'
 import { useAdminLogin } from '@/composables'
 import { ROUTES } from '@/constants'
 
