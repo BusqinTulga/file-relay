@@ -48,7 +48,7 @@ APP_ENV=development docker compose up -d --build
 
 在运行 Docker 的机器上打开 [http://localhost:12345](http://localhost:12345)，按提示设置管理员密码。管理后台位于 `/admin/dashboard`。
 
-正式部署使用默认的 `APP_ENV=production`，由反向代理提供 HTTPS。仅在可信内网通过服务器 IP 使用 HTTP 时，在 Compose 同目录的 `.env` 中设置 `FILERELAY_ALLOW_HTTP=true`。Docker 数据卷 `relay-data` 持久化保存文件和 SQLite 数据库。
+默认生产模式支持 HTTP 和 HTTPS，同一域名或 IP 上可共用配对 Cookie。HTTPS 由反向代理提供，仅允许 HTTPS Cookie 时可设置 `FILERELAY_ALLOW_HTTP=false`。Docker 数据卷 `relay-data` 持久化保存文件和 SQLite 数据库。
 
 ### 技术栈与文档
 
@@ -79,7 +79,7 @@ APP_ENV=development docker compose up -d --build
 
 On the machine running Docker, open [http://localhost:12345](http://localhost:12345) and follow the prompts to set an administrator password. The admin console is at `/admin/dashboard`.
 
-For production, keep the default `APP_ENV=production` and serve HTTPS through a reverse proxy. For HTTP access by server IP on a trusted private network, set `FILERELAY_ALLOW_HTTP=true` in a `.env` file alongside the Compose file. The `relay-data` Docker volume persists the files and SQLite database.
+Production mode supports HTTP and HTTPS by default. Pairing cookies can be shared across both protocols on the same hostname or IP address. Serve HTTPS through a reverse proxy and set `FILERELAY_ALLOW_HTTP=false` if pairing cookies should require HTTPS. The `relay-data` Docker volume persists the files and SQLite database.
 
 ### Tech stack and docs
 
@@ -110,7 +110,7 @@ APP_ENV=development docker compose up -d --build
 
 Docker を実行しているマシンで [http://localhost:12345](http://localhost:12345) を開き、画面の案内に従って管理者パスワードを設定します。管理画面は `/admin/dashboard` です。
 
-本番運用では既定の `APP_ENV=production` を使い、リバースプロキシで HTTPS を提供します。信頼できるローカルネットワークでサーバーの IP アドレスに HTTP でアクセスする場合は、Compose ファイルと同じディレクトリにある `.env` に `FILERELAY_ALLOW_HTTP=true` を設定します。ファイルと SQLite データベースは Docker ボリューム `relay-data` に保存されます。
+本番モードでは既定で HTTP と HTTPS の両方を利用でき、同じホスト名または IP アドレスでペアリング Cookie を共有できます。HTTPS はリバースプロキシで提供し、ペアリング Cookie を HTTPS に限定する場合は `FILERELAY_ALLOW_HTTP=false` を設定します。ファイルと SQLite データベースは Docker ボリューム `relay-data` に保存されます。
 
 ### 技術スタックとドキュメント
 

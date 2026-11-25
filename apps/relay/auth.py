@@ -29,8 +29,8 @@ def digest(value: str) -> str:
 
 def cookie(response: Response, request: Request, name: str, value: str, max_age=config.COOKIE_AGE):
     production = os.getenv("APP_ENV") in {"production", "prod"}
-    allow_http = os.getenv("FILERELAY_ALLOW_HTTP", "").strip().lower() == "true"
-    secure = request.url.scheme == "https" or (production and not allow_http)
+    allow_http = os.getenv("FILERELAY_ALLOW_HTTP", "true").strip().lower() == "true"
+    secure = not allow_http and (request.url.scheme == "https" or production)
     response.set_cookie(name, value, httponly=True, samesite="strict", max_age=max_age, secure=secure, path="/")
 
 

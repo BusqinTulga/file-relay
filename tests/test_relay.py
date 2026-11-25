@@ -121,10 +121,11 @@ async def test_csrf_origins_and_admin_not_device(initialized_client):
 
 
 @pytest.mark.parametrize('scheme,allow_http,secure', [
-    ('http', None, True),
+    ('http', None, False),
+    ('https', None, False),
     ('http', 'false', True),
-    ('http', 'true', False),
-    ('https', 'true', True),
+    ('https', 'false', True),
+    ('https', 'true', False),
 ])
 async def test_production_http_cookie_policy(initialized_client, monkeypatch, scheme, allow_http, secure):
     monkeypatch.setenv('APP_ENV', 'production')
@@ -160,10 +161,16 @@ async def test_production_http_cookie_policy(initialized_client, monkeypatch, sc
     assert response.status_code == 200, response.text
     device_cookie = next(value for value in response.headers.get_list('set-cookie') if value.startswith('relay_device='))
     assert ('secure' in device_cookie.lower().split('; ')) is secure
-    assert (await client.get('/api/relay/session')).json()['paired']
+    paired = response.json()
+    assert paired['paired']
+    assert (await client.get('/api/relay/session')).json() == paired
     if scheme == 'http':
         file, _ = await upload(client)
         assert (await client.get(f"/api/relay/files/{file['id']}/download")).content == b'hello'
+    if not secure:
+        other_scheme = 'http' if scheme == 'https' else 'https'
+        client.base_url = client.base_url.copy_with(scheme=other_scheme)
+        assert (await client.get('/api/relay/session')).json() == paired
 
 
 async def test_repair_migrates_only_owned_valid_files_preserving_times(initialized_client):
