@@ -75,7 +75,9 @@ async def dashboard():
         occupied = await used_capacity()
         sums = await FileCodes.all().annotate(total=Sum("size")).values("total")
         published = (sums[0]["total"] or 0) if sums else 0
-        active = await FileCodes.filter(delete_state="active", relay_expires__gt=stamp).count()
+        active = await FileCodes.filter(
+            delete_state="active", relay_expires__gt=stamp, first_sent__isnull=True,
+        ).count()
         total = await FileCodes.all().count()
         effective = policy()
     disk = await asyncio.to_thread(shutil.disk_usage, data_root)

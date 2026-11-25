@@ -227,10 +227,14 @@ async def test_file_list_relay_statuses_and_batch_partial_failure(initialized_cl
     listing = (await c.get('/admin/file/list', params={'keyword':'findme', 'status':'waiting'}, headers=auth)).json()['detail']
     assert listing['total'] == 1 and listing['files'][0]['id'] == file['id']
     assert not {'code', 'relay_group_id', 'session_hash', 'text'} & listing['files'][0].keys()
-    await c.get(f"/api/relay/files/{file['id']}/download")
-    assert (await c.get('/admin/file/list', params={'status':'retry'}, headers=auth)).json()['detail']['total'] == 1
     overview = (await c.get('/admin/dashboard', headers=auth)).json()['detail']
     assert (overview['active_files'], overview['pending_files']) == (1, 0)
+    download_url = f"/api/relay/files/{file['id']}/download"
+    assert (await c.get(download_url)).content == b'abc'
+    assert (await c.get('/admin/file/list', params={'status':'retry'}, headers=auth)).json()['detail']['total'] == 1
+    overview = (await c.get('/admin/dashboard', headers=auth)).json()['detail']
+    assert (overview['active_files'], overview['pending_files']) == (0, 1)
+    assert (await c.get(download_url)).content == b'abc'
     result = await c.post('/admin/file/batch-delete', json={'ids':[file['id'], 999999]}, headers=auth)
     assert result.json()['detail']['deleted'] == [file['id']]
     assert result.json()['detail']['failed'][0]['id'] == 999999
